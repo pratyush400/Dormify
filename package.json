@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "expo-linear-gradient": "~55.0.8",
+    "firebase": "^12.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.10",
+    "typescript": "~5.9.2"
+  }
+}

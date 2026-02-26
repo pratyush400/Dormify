@@ -2,7 +2,7 @@ import { Text, View, StyleSheet, TextInput, ActivityIndicator } from "react-nati
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 
-export default function Index() {
+export default function Search() {
   return (
     <View style={styles.container}>
       <Text>This is Dormify screen.</Text>

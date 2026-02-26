@@ -1,21 +1,39 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "react-native";
 
 export default function TabsLayout() {
+
   return (
+
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: "#FF4D6D" },
+        headerStyle: { backgroundColor: "#ffac4d" },
         headerTintColor: "white",
+
         tabBarActiveTintColor: "#FF4D6D",
+        tabBarInactiveTintColor: "#9CA3AF",
+
+        tabBarStyle: {
+          height: 60,
+          paddingBottom: 8,
+        },
       }}
     >
+
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
+            <Image
+              source={require('@/assets/images/home.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+              resizeMode="contain"
+            />
           ),
         }}
       />
@@ -23,8 +41,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search"
         options={{
+          title: "Search",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" color={color} size={size} />
+            <Image
+              source={require('@/assets/images/search.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+            />
           ),
         }}
       />
@@ -32,8 +58,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="sell"
         options={{
+          title: "Sell",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" color={color} size={size} />
+            <Image
+              source={require('@/assets/images/sell.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+            />
           ),
         }}
       />
@@ -41,8 +75,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="chats"
         options={{
+          title: "Chats",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble" color={color} size={size} />
+            <Image
+              source={require('@/assets/images/chats.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+            />
           ),
         }}
       />
@@ -50,11 +92,22 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" color={color} size={size} />
+            <Image
+              source={require('@/assets/images/profile.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+            />
           ),
         }}
       />
+
     </Tabs>
+
   );
+
 }
