@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { setDoc, doc } from "firebase/firestore"; 
+import { useRef } from 'react';
 import { db } from '@/services/firebase';
 import {
   View,
@@ -29,44 +31,64 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
   const isValidEduEmail = email.toLowerCase().endsWith('.edu');
+    const [usernameError, setUsernameError] = useState('');
+const [emailError, setEmailError] = useState('');
 
-  const signUp = async () => {
+const checkUsername = async (value: string) => {
+  if (!value) return;
+  const snapshot = await getDocs(query(collection(db, "users"), where("username", "==", value)));
+  if (!snapshot.empty) {
+    setUsernameError("This username is taken.");
+  } else {
+    setUsernameError('');
+  }
+};
 
-    if (!fname) return setErrorMessage("Enter your First name");
-    if (!lname) return setErrorMessage("Enter your Last name");
-    if (!username) return setErrorMessage("Enter a username");
-    if (!isValidEduEmail) return setErrorMessage("Use your .edu email");
-    if (password.length < 6) return setErrorMessage("Password must be 6+ characters");
-    if (password !== confirmPassword) return setErrorMessage("Passwords don't match");
+const checkEmail = async (value: string) => {
+  if (!value.toLowerCase().endsWith('.edu')) return;
+  const snapshot = await getDocs(query(collection(db, "users"), where("email", "==", value)));
+  if (!snapshot.empty) {
+    setEmailError("This email is already registered.");
+  } else {
+    setEmailError('');
+  }
+};
 
-    const userRef = collection(db, "users");
-    const q = query(userRef, where("username", "==", username));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      return setErrorMessage("This username is taken. Try another.");
-    }
-    setIsLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
 
-      await addDoc(userRef, {
-        uid,
-        username,
-        fname,
-        lname,
-        email
-      });
+const isSigningUp = useRef(false);
 
-      router.replace('/(tabs)/home');
-    } catch (error: any) {
-      setErrorMessage(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const signUp = async () => {
+  if (!fname) return setErrorMessage("Enter your First name");
+  if (!lname) return setErrorMessage("Enter your Last name");
+  if (!username) return setErrorMessage("Enter a username");
+  if (!isValidEduEmail) return setErrorMessage("Use your .edu email");
+  if (password.length < 6) return setErrorMessage("Password must be 6+ characters");
+  if (password !== confirmPassword) return setErrorMessage("Passwords don't match");
+  if (usernameError || emailError) return;
+
+  setErrorMessage('');
+  setIsLoading(true);
+
+  const fallbackTimer = setTimeout(() => {
+    router.replace('/(auth)/onboard');
+  }, 10000);
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+    await setDoc(doc(db, "users", uid), { uid, username, fname, lname, email });
+
+    clearTimeout(fallbackTimer); 
+    router.replace('/(auth)/onboard');
+
+  } catch (error: any) {
+    clearTimeout(fallbackTimer); 
+    setErrorMessage(error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 return (
 
 <ImageBackground
@@ -118,16 +140,23 @@ Use your LC or college email
 <View style={styles.card}>
 
 <TextInput
-
-placeholder="Username"
-
-style={styles.input}
-
-value={username}
-
-onChangeText={setUserName}
-
+  placeholder="Username"
+  style={styles.input}
+  value={username}
+  onChangeText={(v) => { setUserName(v); setUsernameError(''); }}
+  onBlur={() => checkUsername(username)}
 />
+{usernameError ? <Text style={styles.errorText}>{usernameError}</Text> : null}
+
+<TextInput
+  placeholder="your@email.edu"
+  style={styles.input}
+  value={email}
+  onChangeText={(v) => { setEmail(v); setEmailError(''); }}
+  onBlur={() => checkEmail(email)}
+/>
+{emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+
 <TextInput
 
 placeholder="First Name"
@@ -151,18 +180,6 @@ onChangeText={setLName}
 
 />
 
-
-<TextInput
-
-placeholder="your@email.edu"
-
-style={styles.input}
-
-value={email}
-
-onChangeText={setEmail}
-
-/>
 
 
 <TextInput
@@ -214,20 +231,11 @@ onPress={signUp}
 
 >
 
-{isLoading
-
-?
-
-<ActivityIndicator color="white" />
-
-:
-
+{isLoading ? <ActivityIndicator color="white" /> :
 <Text style={styles.submitText}>
 
 Create Account
-
 </Text>
-
 }
 
 </TouchableOpacity>

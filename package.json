@@ -1,8 +1,10 @@
 {
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "expo-blur": "~55.0.8",
     "expo-linear-gradient": "~55.0.8",
-    "firebase": "^12.9.0"
+    "firebase": "^12.9.0",
+    "react-native-paper": "^5.15.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.10",

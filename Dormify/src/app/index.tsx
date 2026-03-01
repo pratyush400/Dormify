@@ -1,14 +1,27 @@
-import { router } from "expo-router";
-import { useEffect } from "react";
+// src/app/index.tsx
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/services/firebase';
+import { View, ActivityIndicator } from 'react-native';
 
-export default function Index(){
+export default function Index() {
+  const router = useRouter();
 
-  useEffect(()=>{
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace('/(tabs)/home');
+      } else {
+        router.replace('/(auth)/login');
+      }
+    });
+    return unsub;
+  }, []);
 
-    router.replace("/(auth)/login");
-
-  },[])
-
-  return null;
-
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#6366f1" />
+    </View>
+  );
 }

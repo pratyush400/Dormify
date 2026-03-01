@@ -3,15 +3,16 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyB8HZVV0Z71bu-arFd52pwrAoQD-MIBgiw',
+  authDomain: 'dormify-now.firebaseapp.com',
+  projectId: 'dormify-now',
+  storageBucket: 'dormify-now.firebasestorage.app',
+  messagingSenderId: '283928198587',
+  appId: '1:283928198587:web:fe0bfac9fdcc5c90b9989e',
+  measurementId: "G-ZJE7BSN529"
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
