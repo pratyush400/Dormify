@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { setDoc, doc } from "firebase/firestore"; 
+import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useRef } from 'react';
 import { db } from '@/services/firebase';
 import {
@@ -58,6 +58,8 @@ const checkEmail = async (value: string) => {
 
 const isSigningUp = useRef(false);
 
+// remove addDoc from imports since we don't need it anymore
+
 const signUp = async () => {
   if (!fname) return setErrorMessage("Enter your First name");
   if (!lname) return setErrorMessage("Enter your Last name");
@@ -70,20 +72,26 @@ const signUp = async () => {
   setErrorMessage('');
   setIsLoading(true);
 
-  const fallbackTimer = setTimeout(() => {
-    router.replace('/(auth)/onboard');
-  }, 10000);
-
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
-    await setDoc(doc(db, "users", uid), { uid, username, fname, lname, email });
 
-    clearTimeout(fallbackTimer); 
+    // single setDoc with all fields
+    await setDoc(doc(db, "users", uid), {
+      uid,
+      username,
+      fname,
+      lname,
+      email,
+      hall: '',
+      college: '',
+      avatarUrl: '',
+      createdAt: serverTimestamp(),
+    });
+
     router.replace('/(auth)/onboard');
 
   } catch (error: any) {
-    clearTimeout(fallbackTimer); 
     setErrorMessage(error.message);
   } finally {
     setIsLoading(false);
