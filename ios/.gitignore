@@ -28,3 +28,5 @@ project.xcworkspace
 
 # CocoaPods
 /Pods/
+
+/Users/pc/Dormify/ios/Dormify/GoogleService-Info.plist
