@@ -1,50 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  Image, TouchableOpacity, SafeAreaView,
+  Image, TouchableOpacity, SafeAreaView, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '@/services/firebase';
+import { useUser } from '@/hooks/useUser';
 
-export const MOCK_CHATS = [
-  {
-    id: '1',
-    sellerId: 'user_maya',
-    sellerName: 'Maya R.',
-    sellerAvatar: 'https://i.pravatar.cc/100?img=1',
-    listingTitle: 'IKEA Desk Lamp',
-    listingImage: 'https://picsum.photos/seed/lamp/600/400',
-    lastMessage: 'Is this still available?',
-    timestamp: '2m ago',
-    unread: 2,
-  },
-  {
-    id: '2',
-    sellerId: 'user_jake',
-    sellerName: 'Jake T.',
-    sellerAvatar: 'https://i.pravatar.cc/100?img=2',
-    listingTitle: 'Twin XL Mattress Topper',
-    listingImage: 'https://picsum.photos/seed/mattress/600/400',
-    lastMessage: 'Can you do $30?',
-    timestamp: '1h ago',
-    unread: 0,
-  },
-  {
-    id: '3',
-    sellerId: 'user_priya',
-    sellerName: 'Priya K.',
-    sellerAvatar: 'https://i.pravatar.cc/100?img=3',
-    listingTitle: 'Calculus Textbook',
-    listingImage: 'https://picsum.photos/seed/book/600/400',
-    lastMessage: 'Sure, meet at Copeland?',
-    timestamp: 'Yesterday',
-    unread: 1,
-  },
-];
+type Chat = {
+  id: string;
+  buyerId: string;
+  sellerId: string;
+  listingId: string;
+  listingTitle: string;
+  listingImage: string;
+  lastMessage: string;
+  lastMessageTime: any;
+  participants: string[];
+  unreadCount: Record<string, number>;
+  sellerName?: string;
+  sellerAvatar?: string;
+  buyerName?: string;
+  buyerAvatar?: string;
+};
+
+function timeAgo(timestamp: any): string {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default function ChatsScreen() {
   const router = useRouter();
-  const totalUnread = MOCK_CHATS.reduce((sum, c) => sum + c.unread, 0);
+  const { user } = useUser();
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', user.uid),
+      orderBy('lastMessageTime', 'desc')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat)));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [user]);
+
+  const totalUnread = chats.reduce((sum, c) => sum + (c.unreadCount?.[user?.uid ?? ''] ?? 0), 0);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -56,49 +77,61 @@ export default function ChatsScreen() {
           </View>
         )}
       </View>
-
       <FlatList
-        data={MOCK_CHATS}
+        data={chats}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.chatRow}
-            onPress={() => router.push({ pathname: '/modal/chat', params: { chatId: item.id, sellerName: item.sellerName, sellerAvatar: item.sellerAvatar, listingTitle: item.listingTitle, listingImage: item.listingImage } })}
-            activeOpacity={0.7}
-          >
-            {/* Avatar */}
-            <View>
-              <Image source={{ uri: item.sellerAvatar }} style={styles.avatar} />
-            </View>
+        renderItem={({ item }) => {
+          const isSellerMe = item.sellerId === user?.uid;
+          const otherName = isSellerMe ? (item.buyerName ?? 'Buyer') : (item.sellerName ?? 'Seller');
+          const otherAvatar = isSellerMe ? (item.buyerAvatar ?? '') : (item.sellerAvatar ?? '');
+          const unread = item.unreadCount?.[user?.uid ?? ''] ?? 0;
 
-            {/* Content */}
-            <View style={styles.chatContent}>
-              <View style={styles.chatTop}>
-                <Text style={styles.sellerName}>{item.sellerName}</Text>
-                <Text style={styles.timestamp}>{item.timestamp}</Text>
-              </View>
-              <Text style={styles.listingTitle} numberOfLines={1}>
-                re: {item.listingTitle}
-              </Text>
-              <Text
-                style={[styles.lastMessage, item.unread > 0 && styles.lastMessageUnread]}
-                numberOfLines={1}
-              >
-                {item.lastMessage}
-              </Text>
-            </View>
-
-            {/* Listing thumbnail + unread badge */}
-            <View style={styles.chatRight}>
-              <Image source={{ uri: item.listingImage }} style={styles.listingThumb} />
-              {item.unread > 0 && (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{item.unread}</Text>
+          return (
+            <TouchableOpacity
+              style={styles.chatRow}
+              onPress={() => router.push({
+                pathname: '/modal/chat',
+                params: {
+                  chatId: item.id,
+                  sellerId: item.sellerId,
+                  sellerName: item.sellerName ?? '',
+                  sellerAvatar: item.sellerAvatar ?? '',
+                  listingTitle: item.listingTitle,
+                  listingImage: item.listingImage,
+                }
+              })}
+              activeOpacity={0.7}
+            >
+              <Image
+                source={{ uri: otherAvatar || 'https://i.pravatar.cc/100' }}
+                style={styles.avatar}
+              />
+              <View style={styles.chatContent}>
+                <View style={styles.chatTop}>
+                  <Text style={styles.sellerName}>{otherName}</Text>
+                  <Text style={styles.timestamp}>{timeAgo(item.lastMessageTime)}</Text>
                 </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        )}
+                <Text style={styles.listingTitle} numberOfLines={1}>re: {item.listingTitle}</Text>
+                <Text
+                  style={[styles.lastMessage, unread > 0 && styles.lastMessageUnread]}
+                  numberOfLines={1}
+                >
+                  {item.lastMessage || 'No messages yet'}
+                </Text>
+              </View>
+              <View style={styles.chatRight}>
+                {item.listingImage ? (
+                  <Image source={{ uri: item.listingImage }} style={styles.listingThumb} />
+                ) : null}
+                {unread > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{unread}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>

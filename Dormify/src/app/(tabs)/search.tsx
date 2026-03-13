@@ -1,18 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
-  TextInput,
-  ScrollView,
-  Modal,
+  View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
+  SafeAreaView, TextInput, ScrollView, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, query as fsQuery, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/services/firebase';
 
 const CATEGORIES = [
   { id: '1', label: 'Furniture', icon: '🛋️' },
@@ -25,25 +18,30 @@ const CATEGORIES = [
   { id: '8', label: 'Other', icon: '📦' },
 ];
 
-const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
 
-const MOCK_LISTINGS = [
-  { id: '1', title: 'IKEA Desk Lamp', description: 'White, barely used.', price: 12, condition: 'used', category: 'Furniture', image: 'https://picsum.photos/seed/lamp/600/400', seller: { name: 'Maya R.', avatar: 'https://i.pravatar.cc/100?img=1' }, hall: 'Copeland Hall', college: 'Lewis & Clark College' },
-  { id: '2', title: 'Twin XL Mattress Topper', description: 'Memory foam, one semester.', price: 35, condition: 'used', category: 'Bedding', image: 'https://picsum.photos/seed/mattress/600/400', seller: { name: 'Jake T.', avatar: 'https://i.pravatar.cc/100?img=2' }, hall: 'Akin Hall', college: 'Lewis & Clark College' },
-  { id: '3', title: 'Calculus Textbook', description: 'Stewart 8th edition.', price: 20, condition: 'used', category: 'Books', image: 'https://picsum.photos/seed/book/600/400', seller: { name: 'Priya K.', avatar: 'https://i.pravatar.cc/100?img=3' }, hall: 'Forest Hall', college: 'Lewis & Clark College' },
-  { id: '4', title: 'Mini Fridge', description: 'Black, 1.7 cu ft.', price: 55, condition: 'new', category: 'Electronics', image: 'https://picsum.photos/seed/fridge/600/400', seller: { name: 'Carlos M.', avatar: 'https://i.pravatar.cc/100?img=4' }, hall: 'Odell Hall', college: 'Lewis & Clark College' },
-  { id: '5', title: 'Desk Chair', description: 'Adjustable height.', price: 40, condition: 'used', category: 'Furniture', image: 'https://picsum.photos/seed/chair/600/400', seller: { name: 'Sophie L.', avatar: 'https://i.pravatar.cc/100?img=5' }, hall: 'Stewart Hall', college: 'Lewis & Clark College' },
-  { id: '6', title: 'Brand New Kettle', description: 'Never opened, still in box.', price: 18, condition: 'new', category: 'Kitchen', image: 'https://picsum.photos/seed/kettle/600/400', seller: { name: 'Amir J.', avatar: 'https://i.pravatar.cc/100?img=6' }, hall: 'Copeland Hall', college: 'Lewis & Clark College' },
-];
-
-type Listing = typeof MOCK_LISTINGS[0];
+type Listing = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  condition: string;
+  category: string;
+  photos: string[];
+  seller: { name: string; avatar: string };
+  hall: string;
+  college: string;
+  sellerId: string;
+  createdAt: any;
+  sold: boolean;
+};
 
 function ListingCard({ item }: { item: Listing }) {
   const [saved, setSaved] = useState(false);
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.92}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
+        <Image source={{ uri: item.photos?.[0] }} style={styles.image} />
         <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
           <Ionicons name={saved ? 'heart' : 'heart-outline'} size={18} color={saved ? '#ef4444' : '#fff'} />
         </TouchableOpacity>
@@ -56,9 +54,9 @@ function ListingCard({ item }: { item: Listing }) {
       </View>
       <View style={styles.cardBody}>
         <View style={styles.sellerRow}>
-          <Image source={{ uri: item.seller.avatar }} style={styles.avatar} />
+          <Image source={{ uri: item.seller?.avatar }} style={styles.avatar} />
           <View>
-            <Text style={styles.sellerName}>{item.seller.name}</Text>
+            <Text style={styles.sellerName}>{item.seller?.name}</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={11} color="#9ca3af" />
               <Text style={styles.locationText}>{item.hall} · {item.college}</Text>
@@ -73,7 +71,8 @@ function ListingCard({ item }: { item: Listing }) {
 }
 
 export default function SearchScreen() {
-  const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [listings, setListings] = useState<Listing[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedHall, setSelectedHall] = useState('All Halls');
   const [selectedCondition, setSelectedCondition] = useState('');
@@ -82,8 +81,16 @@ export default function SearchScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const filtered = MOCK_LISTINGS.filter(l => {
-    const matchQuery = l.title.toLowerCase().includes(query.toLowerCase());
+  useEffect(() => {
+    const q = fsQuery(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing)));
+    });
+    return () => unsub();
+  }, []);
+
+  const filtered = listings.filter(l => {
+    const matchQuery = l.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchCat = !selectedCategory || l.category === selectedCategory;
     const matchHall = selectedHall === 'All Halls' || l.hall === selectedHall;
     const matchCondition = !selectedCondition || l.condition === selectedCondition;
@@ -102,12 +109,9 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Search</Text>
       </View>
-
-      {/* Search Bar */}
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={18} color="#9ca3af" />
@@ -115,12 +119,12 @@ export default function SearchScreen() {
             style={styles.searchInput}
             placeholder="Search listings..."
             placeholderTextColor="#9ca3af"
-            value={query}
-            onChangeText={(v) => { setQuery(v); setHasSearched(v.length > 0); }}
+            value={searchQuery}
+            onChangeText={(v) => { setSearchQuery(v); setHasSearched(v.length > 0); }}
             returnKeyType="search"
           />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setHasSearched(false); }}>
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => { setSearchQuery(''); setHasSearched(false); }}>
               <Ionicons name="close-circle" size={18} color="#9ca3af" />
             </TouchableOpacity>
           )}
@@ -138,7 +142,6 @@ export default function SearchScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Category Tiles or Results */}
       {!hasSearched && !selectedCategory ? (
         <ScrollView contentContainerStyle={styles.categoriesGrid} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionLabel}>Browse by Category</Text>
@@ -180,7 +183,6 @@ export default function SearchScreen() {
         />
       )}
 
-      {/* Filter Modal */}
       <Modal visible={showFilters} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -189,9 +191,7 @@ export default function SearchScreen() {
               <Ionicons name="close" size={24} color="#111827" />
             </TouchableOpacity>
           </View>
-
           <ScrollView contentContainerStyle={styles.modalBody}>
-            {/* Condition */}
             <Text style={styles.filterLabel}>Condition</Text>
             <View style={styles.chipRow}>
               {['', 'new', 'used'].map(c => (
@@ -206,8 +206,6 @@ export default function SearchScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
-            {/* Price Range */}
             <Text style={styles.filterLabel}>Price Range</Text>
             <View style={styles.priceRow}>
               <TextInput
@@ -228,8 +226,6 @@ export default function SearchScreen() {
                 onChangeText={setMaxPrice}
               />
             </View>
-
-            {/* Hall */}
             <Text style={styles.filterLabel}>Hall / Location</Text>
             <View style={styles.chipRow}>
               {HALLS.map(h => (
@@ -242,8 +238,6 @@ export default function SearchScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
-            {/* Category */}
             <Text style={styles.filterLabel}>Category</Text>
             <View style={styles.chipRow}>
               {['', ...CATEGORIES.map(c => c.label)].map(c => (
@@ -259,8 +253,6 @@ export default function SearchScreen() {
               ))}
             </View>
           </ScrollView>
-
-          {/* Apply */}
           <View style={styles.modalFooter}>
             <TouchableOpacity
               style={styles.clearBtn}

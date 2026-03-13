@@ -104,6 +104,12 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="work"
+        options={{
+          href: null,
+        }}
+      />
 
     </Tabs>
 

@@ -1,80 +1,152 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, SafeAreaView, Image, KeyboardAvoidingView, Platform,
+  TouchableOpacity, SafeAreaView, Image,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  collection, addDoc, onSnapshot, orderBy,
+  query, serverTimestamp, doc, updateDoc, increment,
+} from 'firebase/firestore';
+import { db } from '@/services/firebase';
+import { useUser } from '@/hooks/useUser';
 
-const MOCK_MESSAGES = [
-  { id: '1', text: 'Hey, is this still available?', mine: true, time: '2:30 PM' },
-  { id: '2', text: 'Yes it is! Are you interested?', mine: false, time: '2:31 PM' },
-  { id: '3', text: 'Definitely, can you do $10?', mine: true, time: '2:32 PM' },
-  { id: '4', text: 'I can do $11, final offer 😄', mine: false, time: '2:33 PM' },
-];
+type Message = {
+  id: string;
+  text: string;
+  senderId: string;
+  createdAt: any;
+};
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { sellerName, sellerAvatar, listingTitle, listingImage } = useLocalSearchParams<{
-    sellerName: string;
-    sellerAvatar: string;
-    listingTitle: string;
-    listingImage: string;
-  }>();
+  const { user } = useUser();
+  const { chatId, sellerId, sellerName, sellerAvatar, listingTitle, listingImage } =
+    useLocalSearchParams<{
+      chatId: string;
+      sellerId: string;
+      sellerName: string;
+      sellerAvatar: string;
+      listingTitle: string;
+      listingImage: string;
+    }>();
 
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const now = new Date();
-    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { id: Date.now().toString(), text: input.trim(), mine: true, time }]);
+  useEffect(() => {
+    if (!chatId) return;
+    const q = query(
+      collection(db, 'chats', chatId, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
+      setLoading(false);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100);
+    });
+
+    // Reset unread count for current user when opening chat
+    if (user?.uid && chatId) {
+      updateDoc(doc(db, 'chats', chatId), {
+        [`unreadCount.${user.uid}`]: 0,
+      });
+    }
+
+    return () => unsub();
+  }, [chatId, user]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || !user || !chatId) return;
+    const text = input.trim();
     setInput('');
+
+    const otherUserId = user.uid === sellerId ? '' : sellerId;
+
+    await addDoc(collection(db, 'chats', chatId, 'messages'), {
+      text,
+      senderId: user.uid,
+      createdAt: serverTimestamp(),
+      id: '',
+    });
+
+    // Update chat metadata
+    await updateDoc(doc(db, 'chats', chatId), {
+      lastMessage: text,
+      lastMessageTime: serverTimestamp(),
+      [`unreadCount.${otherUserId}`]: increment(1),
+    });
+
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Image source={{ uri: sellerAvatar }} style={styles.avatar} />
+        <Image
+          source={{ uri: sellerAvatar || 'https://i.pravatar.cc/100' }}
+          style={styles.avatar}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.headerName}>{sellerName}</Text>
           <Text style={styles.headerSub} numberOfLines={1}>re: {listingTitle}</Text>
         </View>
-        <Image source={{ uri: listingImage }} style={styles.listingThumb} />
+        {listingImage ? (
+          <Image source={{ uri: listingImage }} style={styles.listingThumb} />
+        ) : null}
       </View>
 
-      {/* Messages */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-          renderItem={({ item }) => (
-            <View style={[styles.bubble, item.mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-              <Text style={[styles.bubbleText, item.mine && styles.bubbleTextMine]}>
-                {item.text}
-              </Text>
-              <Text style={[styles.bubbleTime, item.mine && styles.bubbleTimeMine]}>
-                {item.time}
-              </Text>
-            </View>
-          )}
-        />
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#6366f1" />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.messagesList}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No messages yet</Text>
+                <Text style={styles.emptySubtext}>Start the conversation!</Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const mine = item.senderId === user?.uid;
+              return (
+                <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                  <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
+                    {item.text}
+                  </Text>
+                  <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
+                    {formatTime(item.createdAt)}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+        )}
 
-        {/* Input */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -111,9 +183,10 @@ const styles = StyleSheet.create({
   headerName: { fontSize: 15, fontWeight: '700', color: '#111827' },
   headerSub: { fontSize: 12, color: '#6366f1', fontWeight: '600' },
   listingThumb: { width: 40, height: 40, borderRadius: 10 },
-  messagesList: { padding: 16, gap: 8 },
+  messagesList: { padding: 16, gap: 8, flexGrow: 1 },
   bubble: {
-    maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 4,
+    maxWidth: '75%', borderRadius: 18,
+    paddingHorizontal: 14, paddingVertical: 10, gap: 4,
   },
   bubbleMine: { backgroundColor: '#6366f1', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: '#f3f4f6', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
@@ -136,4 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366f1', justifyContent: 'center', alignItems: 'center',
   },
   sendBtnDisabled: { backgroundColor: '#c7d2fe' },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
+  emptyText: { fontSize: 15, fontWeight: '600', color: '#374151' },
+  emptySubtext: { fontSize: 13, color: '#9ca3af' },
 });

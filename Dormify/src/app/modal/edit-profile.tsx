@@ -1,4 +1,5 @@
 // src/app/modal/edit-profile.tsx
+import { doc, updateDoc, getDocs, query, collection, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
@@ -7,7 +8,6 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/services/firebase';
 import { useUser } from '@/hooks/useUser';
@@ -29,33 +29,41 @@ export default function EditProfileScreen() {
     if (!result.canceled) setAvatar(result.assets[0].uri);
   };
 
-  const handleSave = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      let avatarUrl = user.avatarUrl;
+const handleSave = async () => {
+  if (!user) return;
+  setIsLoading(true);
+  try {
+    let avatarUrl = user.avatarUrl;
 
-      // Upload new avatar if changed
-      if (avatar && avatar !== user.avatarUrl) {
-        const response = await fetch(avatar);
-        const blob = await response.blob();
-        const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`);
-        await uploadBytes(avatarRef, blob);
-        avatarUrl = await getDownloadURL(avatarRef);
-      }
-
-      await updateDoc(doc(db, 'users', user.uid), {
-        fname, lname, username, hall, avatarUrl,
-      });
-
-      Alert.alert('Saved!', 'Your profile has been updated.');
-      router.back();
-    } catch (e) {
-      Alert.alert('Error', 'Could not save profile.');
-    } finally {
-      setIsLoading(false);
+    if (avatar && avatar !== user.avatarUrl) {
+      const response = await fetch(avatar);
+      const blob = await response.blob();
+      const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`);
+      await uploadBytes(avatarRef, blob);
+      avatarUrl = await getDownloadURL(avatarRef);
     }
-  };
+
+    await updateDoc(doc(db, 'users', user.uid), {
+      fname, lname, username, hall, avatarUrl,
+    });
+
+    // Update all seller's listings with new avatar
+    const sellerListings = await getDocs(query(
+      collection(db, 'listings'),
+      where('sellerId', '==', user.uid)
+    ));
+    await Promise.all(sellerListings.docs.map(d =>
+      updateDoc(doc(db, 'listings', d.id), { sellerAvatar: avatarUrl })
+    ));
+
+    Alert.alert('Saved!', 'Your profile has been updated.');
+    router.back();
+  } catch (e) {
+    Alert.alert('Error', 'Could not save profile.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -75,7 +83,7 @@ export default function EditProfileScreen() {
       <ScrollView contentContainerStyle={styles.body}>
         <TouchableOpacity style={styles.avatarContainer} onPress={pickAvatar}>
           <Image
-            source={{ uri: avatar || 'https://i.pravatar.cc/200?img=12' }}
+            source={avatar ? { uri: avatar } : require('@/assets/images/davatar.jpg')}
             style={styles.avatar}
           />
           <View style={styles.avatarOverlay}>

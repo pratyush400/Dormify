@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { View, Image, StyleSheet, Text , TouchableOpacity} from 'react-native';
 
   const backgroundImage = require("@/assets/images/boarding.jpg");
+  const backgroundImage2 = require("@/assets/images/bg2.jpg");
 export default function App() {
 const router = useRouter()
   return (
@@ -12,6 +13,11 @@ const router = useRouter()
         <TouchableOpacity style={styles.card} onPress={()=>router.replace('/(tabs)/home')}>
           <Image style={styles.img} source={backgroundImage}/>
   <Text style={styles.cardText}>Lewis & Clark College </Text>
+</TouchableOpacity>
+
+<TouchableOpacity style={styles.card} onPress={()=>router.replace('/(tabs)/work')}>
+          <Image style={styles.img2} source={backgroundImage2}/>
+  <Text style={styles.cardText}>Portland State </Text>
 </TouchableOpacity>
     </View>
 
@@ -54,4 +60,9 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 16,
   },
+  img2: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+  }
 });

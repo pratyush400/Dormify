@@ -1,78 +1,89 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image,
+  TouchableOpacity, SafeAreaView, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-const router = useRouter();
-const MOCK_LISTINGS = [
-  {
-    id: '1',
-    title: 'IKEA Desk Lamp',
-    description: 'White, barely used. Perfect for dorm studying.',
-    price: 12,
-    image: 'https://picsum.photos/seed/lamp/600/400',
-    seller: { name: 'Maya R.', avatar: 'https://i.pravatar.cc/100?img=1' },
-    hall: 'Copeland Hall',
-    college: 'Lewis & Clark College',
-  },
-  {
-    id: '2',
-    title: 'Twin XL Mattress Topper',
-    description: 'Memory foam, used one semester. Clean and fresh.',
-    price: 35,
-    image: 'https://picsum.photos/seed/mattress/600/400',
-    seller: { name: 'Jake T.', avatar: 'https://i.pravatar.cc/100?img=2' },
-    hall: 'Akin Hall',
-    college: 'Lewis & Clark College',
-  },
-  {
-    id: '3',
-    title: 'Calculus Textbook',
-    description: 'Stewart Calculus 8th edition. Some highlights.',
-    price: 20,
-    image: 'https://picsum.photos/seed/book/600/400',
-    seller: { name: 'Priya K.', avatar: 'https://i.pravatar.cc/100?img=3' },
-    hall: 'Forest Hall',
-    college: 'Lewis & Clark College',
-  },
-  {
-    id: '4',
-    title: 'Mini Fridge',
-    description: 'Black, 1.7 cu ft. Works perfectly, moving out sale.',
-    price: 55,
-    image: 'https://picsum.photos/seed/fridge/600/400',
-    seller: { name: 'Carlos M.', avatar: 'https://i.pravatar.cc/100?img=4' },
-    hall: 'Odell Hall',
-    college: 'Lewis & Clark College',
-  },
-  {
-    id: '5',
-    title: 'Desk Chair',
-    description: 'Adjustable height, comfy for long study sessions.',
-    price: 40,
-    image: 'https://picsum.photos/seed/chair/600/400',
-    seller: { name: 'Sophie L.', avatar: 'https://i.pravatar.cc/100?img=5' },
-    hall: 'Stewart Hall',
-    college: 'Lewis & Clark College',
-  },
-];
+import { db } from '@/services/firebase';
+import { collection, onSnapshot, orderBy, query, where, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/hooks/useUser';
 
-type Listing = typeof MOCK_LISTINGS[0];
+type Listing = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  photos: string[];
+  seller: { name: string; avatar: string };
+  sellerId: string;
+  sellerName: string;
+  sellerAvatar: string;
+  hall: string;
+  college: string;
+  sold: boolean;
+};
 
-function ListingCard({ item }: { item: Listing }) {
+function ListingCard({ item, currentUserId }: { item: Listing; currentUserId: string }) {
+  const router = useRouter();
   const [saved, setSaved] = useState(false);
+
+const handleMessageSeller = async () => {
+  if (!currentUserId) return Alert.alert('Login Required', 'Please log in to message sellers.');
+  if (currentUserId === item.sellerId) return Alert.alert('Note', 'This is your own listing!');
+
+  try {
+    const existing = await getDocs(query(
+      collection(db, 'chats'),
+      where('listingId', '==', item.id),
+      where('participants', 'array-contains', currentUserId)
+    ));
+
+    let chatId: string;
+
+    if (!existing.empty) {
+      chatId = existing.docs[0].id;
+    } else {
+      const chatDoc = await addDoc(collection(db, 'chats'), {
+        buyerId: currentUserId,
+        sellerId: item.sellerId,
+        participants: [currentUserId, item.sellerId],
+        listingId: item.id,
+        listingTitle: item.title,
+        listingImage: item.photos?.[0] || '',
+        lastMessage: '',
+        lastMessageTime: serverTimestamp(),
+        unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
+        sellerName: item.sellerName,
+        sellerAvatar: item.sellerAvatar,
+        createdAt: serverTimestamp(),
+      });
+      chatId = chatDoc.id;
+    }
+
+    router.push({
+      pathname: '/modal/chat',
+      params: {
+        chatId,
+        sellerId: item.sellerId,
+        sellerName: item.sellerName,
+        sellerAvatar: item.sellerAvatar,
+        listingTitle: item.title,
+        listingImage: item.photos?.[0] || '',
+      }
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    Alert.alert('Error', 'Could not open chat.');
+  }
+};
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.92}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
+        <Image
+          source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/600/400' }}
+          style={styles.image}
+        />
         <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
           <Ionicons
             name={saved ? 'heart' : 'heart-outline'}
@@ -87,9 +98,12 @@ function ListingCard({ item }: { item: Listing }) {
 
       <View style={styles.cardBody}>
         <View style={styles.sellerRow}>
-          <Image source={{ uri: item.seller.avatar }} style={styles.avatar} />
+          <Image
+    source={item.sellerAvatar ? { uri: item.sellerAvatar } : require('@/assets/images/davatar.jpg')}
+    style={styles.avatar}
+  />
           <View>
-            <Text style={styles.sellerName}>{item.seller.name}</Text>
+            <Text style={styles.sellerName}>{item.sellerName}</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={11} color="#9ca3af" />
               <Text style={styles.locationText}>{item.hall} · {item.college}</Text>
@@ -100,29 +114,44 @@ function ListingCard({ item }: { item: Listing }) {
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
 
-
-<TouchableOpacity
-  style={styles.messageBtn}
-  onPress={() => router.push({
-    pathname: '/modal/chat',
-    params: {
-      chatId: item.id,
-      sellerName: item.seller.name,
-      sellerAvatar: item.seller.avatar,
-      listingTitle: item.title,
-      listingImage: item.image,
-    }
-  })}
->
-  <Ionicons name="chatbubble-outline" size={14} color="#6366f1" />
-  <Text style={styles.messageBtnText}>Message Seller</Text>
-</TouchableOpacity>
+        <TouchableOpacity style={styles.messageBtn} onPress={handleMessageSeller}>
+          <Ionicons name="chatbubble-outline" size={14} color="#6366f1" />
+          <Text style={styles.messageBtnText}>Message Seller</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 }
 
 export default function FeedScreen() {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useUser();
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'listings'),
+      where('sold', '==', false),
+      orderBy('createdAt', 'desc')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing)));
+      setLoading(false);
+    }, (error) => {
+      console.error('Query failed: ', error);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -133,134 +162,64 @@ export default function FeedScreen() {
       </View>
 
       <FlatList
-        data={MOCK_LISTINGS}
+        data={listings}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ListingCard item={item} />}
+        renderItem={({ item }) => <ListingCard item={item} currentUserId={user?.uid ?? ''} />}
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIllustration}>🏠</Text>
+            <Text style={styles.emptyTitle}>Your school's Dormify{'\n'}seems to be empty...</Text>
+            <Text style={styles.emptySubtext}>Be the first to post a listing{'\n'}and get things moving!</Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
+  container: { flex: 1, backgroundColor: '#f3f4f6' },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 14,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#6366f1',
-  },
-  feed: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
-    gap: 16,
-  },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#15c5e8' },
+  feed: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 16 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
-  imageContainer: {
-    position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: 200,
-  },
+  imageContainer: { position: 'relative' },
+  image: { width: '100%', height: 200 },
   saveBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 20,
-    padding: 6,
+    position: 'absolute', top: 12, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, padding: 6,
   },
   priceBadge: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    backgroundColor: '#6366f1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    position: 'absolute', bottom: 12, left: 12,
+    backgroundColor: '#73de2d', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
   },
-  priceText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  cardBody: {
-    padding: 16,
-    gap: 8,
-  },
-  sellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  sellerName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  locationText: {
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  description: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
-  },
+  priceText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  cardBody: { padding: 16, gap: 8 },
+  sellerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  sellerName: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  locationText: { fontSize: 11, color: '#9ca3af' },
+  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  description: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
   messageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#6366f1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', borderWidth: 1, borderColor: '#f58b28',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4,
   },
-  messageBtnText: {
-    color: '#6366f1',
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  messageBtnText: { color: '#f1449d', fontSize: 13, fontWeight: '600' },
+  emptyContainer: { alignItems: 'center', marginTop: 100, gap: 12, paddingHorizontal: 40 },
+  emptyIllustration: { fontSize: 64, marginBottom: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 26 },
+  emptySubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
 });

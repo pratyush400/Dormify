@@ -1,4 +1,8 @@
+import { useUser } from '@/hooks/useUser';
 import React, { useState } from 'react';
+import { auth, db, storage } from '@/services/firebase'; // Adjust path if needed
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   View,
   Text,
@@ -15,10 +19,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 const CATEGORIES = ['Furniture', 'Books', 'Electronics', 'Clothing', 'Kitchen', 'Bedding', 'Sports', 'Other'];
-const HALLS = ['Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
 const CONDITIONS = ['New', 'Used'];
 
 export default function SellScreen() {
+  const { user } = useUser();
   const [photos, setPhotos] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -43,33 +48,79 @@ export default function SellScreen() {
     }
   };
 
-  const takePhoto = async () => {
-    if (photos.length >= 5) return Alert.alert('Max 5 photos');
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled) {
-      setPhotos(prev => [...prev, result.assets[0].uri].slice(0, 5));
-    }
-  };
+const takePhoto = async () => {
+  if (photos.length >= 5) return Alert.alert('Max 5 photos');
+
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  
+  if (status !== 'granted') {
+    Alert.alert('Permission Needed', 'We need camera access to take a photo.');
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({ 
+    quality: 0.8 
+  });
+
+  if (!result.canceled) {
+    setPhotos(prev => [...prev, result.assets[0].uri].slice(0, 5));
+  }
+};
 
   const removePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async () => {
-    if (!isFormValid) return;
-    setIsLoading(true);
-    try {
-      // TODO: upload to Firestore
-      await new Promise(res => setTimeout(res, 1500)); // mock delay
-      Alert.alert('Listed!', 'Your item has been posted.');
-      setPhotos([]); setTitle(''); setDescription('');
-      setPrice(''); setCategory(''); setHall(''); setCondition('');
-    } catch (e) {
-      Alert.alert('Error', 'Something went wrong. Try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const handleSubmit = async () => {
+  if (!isFormValid) return;
+  const authUser = auth.currentUser;
+  
+  if (!authUser) {
+    return Alert.alert('Error', 'You must be logged in to post.');
+  }
+
+  setIsLoading(true);
+  try {
+    const uploadPromises = photos.map(async (uri, index) => {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const filename = `listings/${authUser.uid}/${Date.now()}-${index}.jpg`;
+      const storageRef = ref(storage, filename);
+      await uploadBytes(storageRef, blob);
+      return await getDownloadURL(storageRef);
+    });
+
+    const uploadedPhotoUrls = await Promise.all(uploadPromises);
+
+    await addDoc(collection(db, 'listings'), {
+      title,
+      description,
+      price: parseFloat(price),
+      category,
+      hall,
+      condition,
+      photos: uploadedPhotoUrls,
+      sold: false,
+      createdAt: serverTimestamp(),
+      sellerId: authUser.uid,
+      sellerName: `${user?.fname ?? ''} ${user?.lname ?? ''}`.trim() || 'Anonymous Student',
+      sellerAvatar: user?.avatarUrl || '',
+      college: user?.college || 'Lewis & Clark',
+    });
+
+    Alert.alert('Success!', 'Your item is now live.');
+    
+    setPhotos([]); setTitle(''); setDescription('');
+    setPrice(''); setCategory(''); setHall(''); setCondition('');
+
+  } catch (error) {
+    console.error(error);
+    Alert.alert('Error', 'Failed to post listing. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+}; 
+
 
   return (
     <SafeAreaView style={styles.container}>

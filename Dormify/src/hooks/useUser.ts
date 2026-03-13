@@ -28,13 +28,12 @@ export function useUser() {
         return;
       }
 
-      // Real-time listener on user doc
-      const unsubDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
-        if (snap.exists()) {
-          setUser(snap.data() as UserProfile);
-        }
-        setLoading(false);
-      });
+  const unsubDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
+    if (snap.exists()) {
+      setUser({ uid: firebaseUser.uid, ...snap.data() } as UserProfile);
+    }
+    setLoading(false);
+  });
 
       return () => unsubDoc();
     });
