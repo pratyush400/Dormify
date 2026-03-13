@@ -12,7 +12,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/services/firebase';
 import { useUser } from '@/hooks/useUser';
 
-const HALLS = ['Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
 
 export default function EditProfileScreen() {
   const router = useRouter();

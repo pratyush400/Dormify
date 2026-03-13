@@ -28,7 +28,8 @@ type Listing = {
   condition: string;
   category: string;
   photos: string[];
-  seller: { name: string; avatar: string };
+  sellerName: string;      // ← changed
+  sellerAvatar: string;  
   hall: string;
   college: string;
   sellerId: string;
@@ -54,9 +55,9 @@ function ListingCard({ item }: { item: Listing }) {
       </View>
       <View style={styles.cardBody}>
         <View style={styles.sellerRow}>
-          <Image source={{ uri: item.seller?.avatar }} style={styles.avatar} />
+          <Image source={{ uri: item.sellerAvatar }} style={styles.avatar} />
           <View>
-            <Text style={styles.sellerName}>{item.seller?.name}</Text>
+            <Text style={styles.sellerName}>{item.sellerName}</Text>
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={11} color="#9ca3af" />
               <Text style={styles.locationText}>{item.hall} · {item.college}</Text>
