@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dormify",
-    "slug": "dormify",
+    "slug": "Dormify",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -40,9 +40,7 @@
           }
         }
       ],
-      "expo-image",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
