@@ -149,6 +149,7 @@ Use your LC or college email
 
 <TextInput
   placeholder="Username"
+  placeholderTextColor="#9ca3af"
   style={styles.input}
   value={username}
   onChangeText={(v) => { setUserName(v); setUsernameError(''); }}
@@ -158,6 +159,7 @@ Use your LC or college email
 
 <TextInput
   placeholder="your@email.edu"
+  placeholderTextColor="#9ca3af"
   style={styles.input}
   value={email}
   onChangeText={(v) => { setEmail(v); setEmailError(''); }}
@@ -168,7 +170,7 @@ Use your LC or college email
 <TextInput
 
 placeholder="First Name"
-
+placeholderTextColor="#9ca3af"
 style={styles.input}
 
 value={fname}
@@ -179,7 +181,7 @@ onChangeText={setFName}
 <TextInput
 
 placeholder="Last Name"
-
+placeholderTextColor="#9ca3af"
 style={styles.input}
 
 value={lname}
@@ -193,7 +195,7 @@ onChangeText={setLName}
 <TextInput
 
 placeholder="Password"
-
+placeholderTextColor="#9ca3af"
 secureTextEntry
 
 style={styles.input}
@@ -208,7 +210,7 @@ onChangeText={setPassword}
 <TextInput
 
 placeholder="Confirm Password"
-
+placeholderTextColor="#9ca3af"
 secureTextEntry
 
 style={styles.input}
@@ -354,7 +356,7 @@ elevation: 10,
 input: {
 
 backgroundColor: '#f3f4f6',
-
+color: '#111827',
 padding: 14,
 
 borderRadius: 10,

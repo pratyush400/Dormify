@@ -151,7 +151,7 @@ Login with your LC or college email
 <TextInput
 
 placeholder="lcxx-xxxx@lclark.edu"
-
+placeholderTextColor="#9ca3af"
 style={styles.input}
 
 value={email}
@@ -164,7 +164,7 @@ onChangeText={setEmail}
 <TextInput
 
 placeholder="Password"
-
+placeholderTextColor="#9ca3af"
 secureTextEntry
 
 style={styles.input}
@@ -331,7 +331,7 @@ elevation: 10,
 input: {
 
 backgroundColor: '#f3f4f6',
-
+color: '#111827',
 padding: 14,
 
 borderRadius: 10,
