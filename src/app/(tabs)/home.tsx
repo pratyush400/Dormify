@@ -78,7 +78,10 @@ const handleMessageSeller = async () => {
 };
 
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.92}>
+    <TouchableOpacity style={styles.card}
+     activeOpacity={0.92} 
+     onPress={() => router.push(`/listing/${item.id}`)}
+     >
       <View style={styles.imageContainer}>
         <Image
           source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/600/400' }}
@@ -154,7 +157,7 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.header}>
         <Text style={styles.headerTitle}>Dormify</Text>
         <TouchableOpacity>
           <Ionicons name="notifications-outline" size={24} color="#111827" />

@@ -70,6 +70,13 @@ export default function ChatsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+  <TouchableOpacity onPress={() => router.back()}>
+    <Ionicons name="chevron-back" size={24} color="#111827" />
+  </TouchableOpacity>
+  <Text style={styles.headerTitle}>Page Title</Text>
+  <View style={{ width: 24 }} />{/* spacer to center title */}
+</View>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Chats</Text>
         {totalUnread > 0 && (
           <View style={styles.headerBadge}>

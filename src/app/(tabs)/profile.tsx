@@ -10,7 +10,8 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useUser } from '../../hooks/useUser';
-
+import { doc, deleteDoc } from 'firebase/firestore';
+import { Alert } from 'react-native';
 type Listing = {
   id: string;
   title: string;
@@ -21,8 +22,25 @@ type Listing = {
 };
 
 function MyListingCard({ item }: { item: Listing }) {
+  const router = useRouter();
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Listing',
+      'Are you sure you want to delete this listing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteDoc(doc(db, 'listings', item.id));
+          }
+        }
+      ]
+    );
+  };
   return (
-    <TouchableOpacity style={styles.listingCard} activeOpacity={0.85}>
+    <TouchableOpacity style={styles.listingCard} activeOpacity={0.85} onPress={() => router.push(`/listing/${item.id}`)}>
       <Image
         source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/300/200' }}
         style={styles.listingImage}
@@ -32,6 +50,9 @@ function MyListingCard({ item }: { item: Listing }) {
           <Text style={styles.soldText}>Sold</Text>
         </View>
       )}
+      <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+        <Ionicons name="trash-outline" size={14} color="#fff" />
+      </TouchableOpacity>
       <View style={styles.listingInfo}>
         <Text style={styles.listingTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.listingPrice}>${item.price}</Text>
@@ -238,6 +259,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center', alignItems: 'center', height: 120,
   },
+  deleteBtn: {
+  position: 'absolute', top: 6, right: 6,
+  backgroundColor: 'rgba(239,68,68,0.85)',
+  borderRadius: 8, padding: 5,
+},
   soldText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   listingInfo: { padding: 10, gap: 4 },
   listingTitle: { fontSize: 13, fontWeight: '600', color: '#111827' },
