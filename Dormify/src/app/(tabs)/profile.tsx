@@ -7,9 +7,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '@/services/firebase';
+import { auth, db } from '../../services/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { useUser } from '@/hooks/useUser';
+import { useUser } from '../../hooks/useUser';
 
 type Listing = {
   id: string;

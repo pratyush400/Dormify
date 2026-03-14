@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query as fsQuery, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@/services/firebase';
+import { db } from '../../services/firebase';
 
 const CATEGORIES = [
   { id: '1', label: 'Furniture', icon: '🛋️' },

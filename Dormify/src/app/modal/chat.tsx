@@ -10,8 +10,8 @@ import {
   collection, addDoc, onSnapshot, orderBy,
   query, serverTimestamp, doc, updateDoc, increment,
 } from 'firebase/firestore';
-import { db } from '@/services/firebase';
-import { useUser } from '@/hooks/useUser';
+import { db } from '../../services/firebase';
+import { useUser } from '../../hooks/useUser';
 
 type Message = {
   id: string;

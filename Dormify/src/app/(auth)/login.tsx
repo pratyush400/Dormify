@@ -19,7 +19,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 
-import { auth } from '@/services/firebase';
+import { auth } from '../services/firebase';
 
 export default function LoginScreen() {
 

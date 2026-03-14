@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '@/services/firebase';
+import { auth, db } from '../services/firebase';
 
 export type UserProfile = {
   uid: string;

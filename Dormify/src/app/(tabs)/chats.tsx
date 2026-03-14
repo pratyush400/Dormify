@@ -6,8 +6,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from '@/services/firebase';
-import { useUser } from '@/hooks/useUser';
+import { db } from '../../services/firebase';
+import { useUser } from '../../hooks/useUser';
 
 type Chat = {
   id: string;

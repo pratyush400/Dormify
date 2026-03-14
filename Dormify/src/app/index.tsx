@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/services/firebase';
+import { auth } from '../services/firebase';
 import { View, ActivityIndicator } from 'react-native';
 
 export default function Index() {

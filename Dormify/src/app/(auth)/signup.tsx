@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useRef } from 'react';
-import { db } from '@/services/firebase';
+import { db } from '../services/firebase';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/services/firebase';
+import { auth } from '../services/firebase';
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 
 export default function SignupScreen() {

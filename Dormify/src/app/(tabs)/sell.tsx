@@ -1,6 +1,6 @@
-import { useUser } from '@/hooks/useUser';
+import { useUser } from '../../hooks/useUser';
 import React, { useState } from 'react';
-import { auth, db, storage } from '@/services/firebase'; // Adjust path if needed
+import { auth, db, storage } from '../../services/firebase'; // Adjust path if needed
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {

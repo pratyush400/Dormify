@@ -4,9 +4,9 @@ import { View, Text, StyleSheet, FlatList, Image,
   TouchableOpacity, SafeAreaView, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '@/services/firebase';
+import { db } from '../../services/firebase';
 import { collection, onSnapshot, orderBy, query, where, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
-import { useUser } from '@/hooks/useUser';
+import { useUser } from '../../hooks/useUser';
 
 type Listing = {
   id: string;
