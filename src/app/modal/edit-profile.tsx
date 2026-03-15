@@ -1,5 +1,5 @@
 // src/app/modal/edit-profile.tsx
-import { doc, updateDoc, getDocs, query, collection, where } from 'firebase/firestore';
+import { doc, updateDoc, setDoc ,getDocs, query, collection, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
@@ -43,9 +43,9 @@ const handleSave = async () => {
       avatarUrl = await getDownloadURL(avatarRef);
     }
 
-    await updateDoc(doc(db, 'users', user.uid), {
-      fname, lname, username, hall, avatarUrl,
-    });
+await setDoc(doc(db, 'users', user.uid), {
+  fname, lname, username, hall, avatarUrl,
+}, { merge: true });
 
     // Update all seller's listings with new avatar
     const sellerListings = await getDocs(query(

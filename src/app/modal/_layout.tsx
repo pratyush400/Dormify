@@ -5,6 +5,7 @@ export default function ModalLayout() {
       <Stack.Screen name="chat" />
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="filter" />
+      <Stack.Screen name="view-profile" />
     </Stack>
   );
 }

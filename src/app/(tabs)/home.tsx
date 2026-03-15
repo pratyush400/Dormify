@@ -5,8 +5,10 @@ import { View, Text, StyleSheet, FlatList, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
-import { collection, onSnapshot, orderBy, query, where, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, getDocs} from 'firebase/firestore';
 import { useUser } from '../../hooks/useUser';
+import { collection, onSnapshot, orderBy, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+
 
 type Listing = {
   id: string;
@@ -23,41 +25,38 @@ type Listing = {
   sold: boolean;
 };
 
-function ListingCard({ item, currentUserId }: { item: Listing; currentUserId: string }) {
-  const router = useRouter();
+function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: { 
+    item: Listing; 
+  currentUserId: string;
+  buyerName: string;
+  buyerAvatar: string;}){
+      const router = useRouter();
   const [saved, setSaved] = useState(false);
 
 const handleMessageSeller = async () => {
-  if (!currentUserId) return Alert.alert('Login Required', 'Please log in to message sellers.');
+  if (!currentUserId) return Alert.alert('Login Required', 'Please log in.');
   if (currentUserId === item.sellerId) return Alert.alert('Note', 'This is your own listing!');
 
   try {
-    const existing = await getDocs(query(
-      collection(db, 'chats'),
-      where('listingId', '==', item.id),
-      where('participants', 'array-contains', currentUserId)
-    ));
+    const chatId = `${currentUserId}_${item.sellerId}`;
+    const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
 
-    let chatId: string;
-
-    if (!existing.empty) {
-      chatId = existing.docs[0].id;
-    } else {
-      const chatDoc = await addDoc(collection(db, 'chats'), {
-        buyerId: currentUserId,
-        sellerId: item.sellerId,
-        participants: [currentUserId, item.sellerId],
-        listingId: item.id,
-        listingTitle: item.title,
-        listingImage: item.photos?.[0] || '',
-        lastMessage: '',
-        lastMessageTime: serverTimestamp(),
-        unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
-        sellerName: item.sellerName,
-        sellerAvatar: item.sellerAvatar,
-        createdAt: serverTimestamp(),
-      });
-      chatId = chatDoc.id;
+    if (!chatSnap.exists()) {
+            console.log('CREATING CHAT WITH ID:', chatId);
+        await setDoc(chatRef, {
+          buyerId: currentUserId,
+          buyerName,
+          buyerAvatar,
+          sellerId: item.sellerId,
+          participants: [currentUserId, item.sellerId],
+          lastMessage: '',
+          lastMessageTime: serverTimestamp(),
+          unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
+          sellerName: item.sellerName,
+          sellerAvatar: item.sellerAvatar,
+          createdAt: serverTimestamp(),
+        });
     }
 
     router.push({
@@ -71,9 +70,9 @@ const handleMessageSeller = async () => {
         listingImage: item.photos?.[0] || '',
       }
     });
-  } catch (error) {
-    console.error('Chat error:', error);
-    Alert.alert('Error', 'Could not open chat.');
+  } catch (error: any) {
+    console.error('Chat error:', error.message);
+    Alert.alert('Error', error.message);
   }
 };
 
@@ -131,6 +130,8 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
 
+  
+
   useEffect(() => {
     const q = query(
       collection(db, 'listings'),
@@ -150,10 +151,11 @@ export default function FeedScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#e537df" />
       </View>
     );
   }
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,7 +169,16 @@ export default function FeedScreen() {
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ListingCard item={item} currentUserId={user?.uid ?? ''} />}
+renderItem={({ item }) => (
+  <ListingCard 
+    item={item} 
+    currentUserId={user?.uid ?? ''} 
+    buyerName={user ? `${user.fname} ${user.lname}` : ''}
+    buyerAvatar={user?.avatarUrl ?? ''}
+  />
+)}
+
+
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -180,7 +191,9 @@ export default function FeedScreen() {
       />
     </SafeAreaView>
   );
+  
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
@@ -226,3 +239,4 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 26 },
   emptySubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
 });
+

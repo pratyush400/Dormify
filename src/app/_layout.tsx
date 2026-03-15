@@ -4,10 +4,11 @@ import { Stack } from 'expo-router';
 export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="index" />
-      <Stack.Screen name="listing/[id]"/>
+      <Stack.Screen name="modal" />
+      <Stack.Screen name="listing" />
     </Stack>
   );
 }

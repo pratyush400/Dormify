@@ -4,6 +4,7 @@ import {
   View, Text, StyleSheet, ScrollView, Image,
   TouchableOpacity, SafeAreaView, ActivityIndicator,
 } from 'react-native';
+import { updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
@@ -20,6 +21,8 @@ type Listing = {
   condition: string;
   sold: boolean;
 };
+
+
 
 function MyListingCard({ item }: { item: Listing }) {
   const router = useRouter();
@@ -86,7 +89,7 @@ export default function ProfileScreen() {
   const activeListings = listings.filter(l => !l.sold);
   const soldListings = listings.filter(l => l.sold);
   const displayed = activeTab === 'active' ? activeListings : soldListings;
-
+const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
   const handleSignOut = async () => {
     await signOut(auth);
     router.replace('/(auth)/login');
@@ -99,6 +102,7 @@ export default function ProfileScreen() {
       </View>
     );
   }
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,7 +117,7 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: user?.avatarUrl || 'https://i.pravatar.cc/200?img=12' }}
+              source={{ uri: user?.avatarUrl || DEFAULT_AVATAR }}
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.avatarEditBtn} onPress={() => router.push('/modal/edit-profile')}>

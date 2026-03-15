@@ -42,40 +42,61 @@ export default function ChatsScreen() {
   const { user } = useUser();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
+useEffect(() => {
+  if (!user) return;
+  
+  const q = query(
+    collection(db, 'chats'),
+    where('participants', 'array-contains', user.uid),
+  );
+  
+const unsub = onSnapshot(q, (snap) => {
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat));
 
-  useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, 'chats'),
-      where('participants', 'array-contains', user.uid),
-      orderBy('lastMessageTime', 'desc')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat)));
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [user]);
+  // deduplicate by listingId + buyerId
+  const seen = new Map<string, Chat>();
+  for (const chat of all) {
+    const key = `${chat.listingId}_${chat.buyerId}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, chat);
+    } else {
+      const timeA = existing.lastMessageTime?.toDate?.() ?? new Date(0);
+      const timeB = chat.lastMessageTime?.toDate?.() ?? new Date(0);
+      if (timeB > timeA) seen.set(key, chat);
+    }
+  }
+
+  const data = Array.from(seen.values()).sort((a, b) => {
+    const timeA = a.lastMessageTime?.toDate?.() ?? new Date(0);
+    const timeB = b.lastMessageTime?.toDate?.() ?? new Date(0);
+    return timeB.getTime() - timeA.getTime();
+  });
+
+  setChats(data);
+  setLoading(false);}
+ ,(error) => {
+  console.log('Chats error:', error);
+  setLoading(false);
+});
+
+  
+  return () => unsub();
+}, [user]);
 
   const totalUnread = chats.reduce((sum, c) => sum + (c.unreadCount?.[user?.uid ?? ''] ?? 0), 0);
 
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-  <TouchableOpacity onPress={() => router.back()}>
-    <Ionicons name="chevron-back" size={24} color="#111827" />
-  </TouchableOpacity>
-  <Text style={styles.headerTitle}>Page Title</Text>
-  <View style={{ width: 24 }} />{/* spacer to center title */}
-</View>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Chats</Text>
         {totalUnread > 0 && (
@@ -89,9 +110,11 @@ export default function ChatsScreen() {
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
           const isSellerMe = item.sellerId === user?.uid;
-          const otherName = isSellerMe ? (item.buyerName ?? 'Buyer') : (item.sellerName ?? 'Seller');
+          const otherName = isSellerMe ? (item.buyerName ?? 'Yourself') : (item.sellerName ?? 'Seller');
           const otherAvatar = isSellerMe ? (item.buyerAvatar ?? '') : (item.sellerAvatar ?? '');
           const unread = item.unreadCount?.[user?.uid ?? ''] ?? 0;
+
+
 
           return (
             <TouchableOpacity
@@ -109,10 +132,22 @@ export default function ChatsScreen() {
               })}
               activeOpacity={0.7}
             >
+            <TouchableOpacity
+              onPress={() => router.push({
+                pathname: '/modal/view-profile',
+                params: {
+                  uid: isSellerMe ? item.buyerId : item.sellerId,
+                  name: otherName,
+                  avatar: otherAvatar,
+                }
+              })}
+            >
               <Image
-                source={{ uri: otherAvatar || 'https://i.pravatar.cc/100' }}
+                source={otherAvatar ? { uri: otherAvatar } : DEFAULT_AVATAR}
                 style={styles.avatar}
               />
+            </TouchableOpacity>
+      
               <View style={styles.chatContent}>
                 <View style={styles.chatTop}>
                   <Text style={styles.sellerName}>{otherName}</Text>
@@ -161,7 +196,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
   headerBadge: {
-    backgroundColor: '#6366f1', borderRadius: 12,
+    backgroundColor: '#16161d', borderRadius: 12,
     paddingHorizontal: 8, paddingVertical: 2,
   },
   headerBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
@@ -174,13 +209,13 @@ const styles = StyleSheet.create({
   chatTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sellerName: { fontSize: 15, fontWeight: '700', color: '#111827' },
   timestamp: { fontSize: 12, color: '#9ca3af' },
-  listingTitle: { fontSize: 12, color: '#6366f1', fontWeight: '600' },
+  listingTitle: { fontSize: 12, color: '#10a5ea', fontWeight: '600' },
   lastMessage: { fontSize: 13, color: '#6b7280' },
   lastMessageUnread: { color: '#111827', fontWeight: '600' },
   chatRight: { alignItems: 'flex-end', gap: 6 },
   listingThumb: { width: 44, height: 44, borderRadius: 10 },
   unreadBadge: {
-    backgroundColor: '#6366f1', borderRadius: 10,
+    backgroundColor: '#13dff6', borderRadius: 10,
     minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: 4,
   },

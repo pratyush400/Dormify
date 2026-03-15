@@ -11,16 +11,16 @@ export default function Index() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.replace('/(tabs)/home');
+        router.replace('/(tabs)/home'); 
       } else {
-        router.replace('/(auth)/login');
+        router.replace('/(auth)/login'); 
       }
     });
-    return unsub;
+    return () => unsub();
   }, []);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
       <ActivityIndicator size="large" color="#6366f1" />
     </View>
   );
