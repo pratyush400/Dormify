@@ -1,13 +1,18 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image,
-  TouchableOpacity, SafeAreaView, ActivityIndicator, Alert,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '../../services/firebase';
-import { addDoc, getDocs} from 'firebase/firestore';
+import { useRouter } from 'expo-router';
+import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator, Alert,
+  FlatList, Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useUser } from '../../hooks/useUser';
-import { collection, onSnapshot, orderBy, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 
 type Listing = {
@@ -23,6 +28,7 @@ type Listing = {
   hall: string;
   college: string;
   sold: boolean;
+  createdAt: any;
 };
 
 function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: { 
@@ -32,6 +38,19 @@ function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: {
   buyerAvatar: string;}){
       const router = useRouter();
   const [saved, setSaved] = useState(false);
+
+  const formatDate = (timestamp: any) => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return date.toLocaleDateString();
+};
+
+
 
 const handleMessageSeller = async () => {
   if (!currentUserId) return Alert.alert('Login Required', 'Please log in.');
@@ -86,6 +105,9 @@ const handleMessageSeller = async () => {
           source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/600/400' }}
           style={styles.image}
         />
+          <View style={styles.dateBadge}>
+    <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+  </View>
         <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
           <Ionicons
             name={saved ? 'heart' : 'heart-outline'}
@@ -175,6 +197,7 @@ renderItem={({ item }) => (
     currentUserId={user?.uid ?? ''} 
     buyerName={user ? `${user.fname} ${user.lname}` : ''}
     buyerAvatar={user?.avatarUrl ?? ''}
+
   />
 )}
 
@@ -238,5 +261,19 @@ const styles = StyleSheet.create({
   emptyIllustration: { fontSize: 64, marginBottom: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 26 },
   emptySubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
+dateBadge: {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  backgroundColor: 'rgba(0,0,0,0.45)',
+  borderRadius: 8,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+},
+dateText: {
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: '600',
+},
 });
 

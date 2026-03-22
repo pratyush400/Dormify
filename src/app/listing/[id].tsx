@@ -1,14 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, ScrollView,
-  TouchableOpacity, SafeAreaView, ActivityIndicator, Alert,
+  ActivityIndicator, Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { db } from '../../services/firebase';
 import { useUser } from '../../hooks/useUser';
-import { Modal } from 'react-native';
-import { collection, onSnapshot, orderBy, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 type Listing = {
   id: string;
@@ -24,6 +30,7 @@ type Listing = {
   condition: string;
   category: string;
   sold: boolean;
+  createdAt: any;
 };
 
 export default function ListingDetail() {
@@ -44,6 +51,15 @@ const [photoVisible, setPhotoVisible] = useState(false);
     });
     return () => unsub();
   }, [id]);
+const formatDate = (timestamp: any) => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  }); 
+};
   
 
 const handleMessageSeller = async () => {
@@ -141,6 +157,9 @@ const chatId = `${user.uid}_${listing?.sellerId}`;
             style={styles.mainPhoto}
           />
           </TouchableOpacity>
+        <View style={styles.dateBadge}>
+          <Text style={styles.dateText}>{formatDate(listing.createdAt)}</Text>
+        </View>
           {listing.photos?.length > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
               {listing.photos.map((photo, i) => (
@@ -171,7 +190,7 @@ const chatId = `${user.uid}_${listing?.sellerId}`;
             pathname: '/modal/view-profile',
             params: {
             uid: listing.sellerId,       
-            name: listing.sellerName,     // ← missing
+            name: listing.sellerName,   
             avatar: listing.sellerAvatar, // ← missing
             }
             })}
@@ -303,5 +322,19 @@ modalClose: {
 fullPhoto: {
   width: 450,
   height: '100%',
+},
+dateBadge: {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  backgroundColor: 'rgba(0,0,0,0.45)',
+  borderRadius: 8,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+},
+dateText: {
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: '600',
 },
 });
