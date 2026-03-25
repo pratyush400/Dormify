@@ -1,18 +1,31 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, SafeAreaView, Image,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  collection, addDoc, onSnapshot, orderBy,
-  query, serverTimestamp, doc, updateDoc, increment,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  increment,
+  onSnapshot, orderBy,
+  query, serverTimestamp,
+  setDoc,
+  updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  KeyboardAvoidingView, Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useUser } from '../../hooks/useUser';
-import { getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 type Message = {
   id: string;
@@ -64,6 +77,28 @@ const [lastSeen, setLastSeen] = useState<any>(null);
   });
   return newChatRef.id;
 };
+  const sendPushNotification = async (receiverId: string, senderName: string, message: string) => {
+    try {
+      // get receiver's push token
+      const userDoc = await getDoc(doc(db, 'users', receiverId));
+      const token = userDoc.data()?.expoPushToken;
+      if (!token) return;
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: token,
+          title: senderName,
+          body: message,
+          sound: 'default',
+          badge: 1,
+        }),
+      });
+    } catch (e) {
+      console.log('Push notification error:', e);
+    }
+  };
 
 useEffect(() => {
     if (!chatId) return;
@@ -120,7 +155,6 @@ const getLastSeen = () => {
       text,
       senderId: user.uid,
       createdAt: serverTimestamp(),
-      id: '',
     });
 
     await updateDoc(doc(db, 'chats', chatId), {
@@ -128,6 +162,14 @@ const getLastSeen = () => {
       lastMessageTime: serverTimestamp(),
       [`unreadCount.${otherUserId}`]: increment(1),
     });
+
+      if (otherUserId) {
+    await sendPushNotification(
+      otherUserId,
+      `${user.fname} ${user.lname}`,
+      text
+    );
+  }
 
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };

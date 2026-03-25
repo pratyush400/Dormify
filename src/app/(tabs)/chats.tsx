@@ -1,13 +1,18 @@
+import { useRouter } from 'expo-router';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList,
-  Image, TouchableOpacity, SafeAreaView, ActivityIndicator,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useUser } from '../../hooks/useUser';
+import { db } from '../../services/firebase';
 
 type Chat = {
   id: string;
@@ -153,7 +158,6 @@ const unsub = onSnapshot(q, (snap) => {
                   <Text style={styles.sellerName}>{otherName}</Text>
                   <Text style={styles.timestamp}>{timeAgo(item.lastMessageTime)}</Text>
                 </View>
-                <Text style={styles.listingTitle} numberOfLines={1}>re: {item.listingTitle}</Text>
                 <Text
                   style={[styles.lastMessage, unread > 0 && styles.lastMessageUnread]}
                   numberOfLines={1}
