@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert,
@@ -40,6 +40,7 @@ export default function ListingDetail() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPhoto, setCurrentPhoto] = useState(0);
+  const [isReported, setIsReported] = useState(false);
 const [photoVisible, setPhotoVisible] = useState(false);
   useEffect(() => {
     if (!id) return;
@@ -60,6 +61,24 @@ const formatDate = (timestamp: any) => {
     year: 'numeric' 
   }); 
 };
+
+const reportListing = async (reason: string) => {
+  if (!user) return;
+  try {
+    await addDoc(collection(db, 'reports'), {
+      listingId: id,
+      reportedBy: user.uid,
+      reason,
+      createdAt: serverTimestamp(),
+    });
+    Alert.alert('Reported', 'Thank you for your report.');
+    setIsReported(true);
+  } catch (error) {
+    console.error("Error reporting:", error);
+    Alert.alert('Error', 'Could not submit report. Please try again.');
+  }
+};
+
   
 
 const handleMessageSeller = async () => {
@@ -137,6 +156,27 @@ const chatId = `${user.uid}_${listing?.sellerId}`;
       </View>
     );
   }
+  if (isReported) {
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Report Submitted</Text>
+      </View>
+      <View style={styles.thankYouContainer}>
+        <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+        <Text style={styles.thankYouText}>
+          Thank you for bringing this to our attention. We will review this listing.
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
 
   return (
     <SafeAreaView style={styles.container}>
@@ -145,6 +185,17 @@ const chatId = `${user.uid}_${listing?.sellerId}`;
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{listing.title}</Text>
+        <TouchableOpacity onPress={() => Alert.alert(
+  'Report Listing',
+  'Why are you reporting this listing?',
+  [
+    { text: 'Spam', onPress: () => reportListing('spam') },
+    { text: 'Inappropriate', onPress: () => reportListing('inappropriate') },
+    { text: 'Cancel', style: 'cancel' },
+  ]
+)}>
+  <Ionicons name="flag-outline" size={22} color="#111827" />
+</TouchableOpacity>
         <View style={{ width: 24 }} />
       </View>
 
@@ -337,4 +388,30 @@ dateText: {
   fontSize: 11,
   fontWeight: '600',
 },
+
+  thankYouContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f0ebeb',
+  },
+  thankYouText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  backButton: {
+    backgroundColor: '#dee2e9',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  backButtonText: { 
+    color: '#fff',
+    fontWeight: '600',
+  },
 });

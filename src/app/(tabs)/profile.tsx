@@ -1,18 +1,22 @@
 // src/app/(tabs)/profile.tsx
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Image,
-  TouchableOpacity, SafeAreaView, ActivityIndicator,
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../../services/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useUser } from '../../hooks/useUser';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { Alert } from 'react-native';
+import { auth, db } from '../../services/firebase';
 type Listing = {
   id: string;
   title: string;

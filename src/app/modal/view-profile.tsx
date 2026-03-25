@@ -1,12 +1,18 @@
+///src/app/modal/view-profile.tsx
+import { db } from '@/services/firebase';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, SafeAreaView,
-  TouchableOpacity, FlatList, ActivityIndicator,
+  ActivityIndicator,
+  FlatList,
+  Image, SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/services/firebase';
 
 const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');  
 const DEFAULT_ITEM = require('@/assets/images/davatar.jpg');  

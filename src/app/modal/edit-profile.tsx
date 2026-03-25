@@ -1,16 +1,21 @@
 // src/app/modal/edit-profile.tsx
-import { doc, updateDoc, setDoc ,getDocs, query, collection, where } from 'firebase/firestore';
-import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  SafeAreaView, ScrollView, Image, ActivityIndicator, Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { useRouter } from 'expo-router';
+import { collection, doc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator, Alert,
+  Image,
+  SafeAreaView, ScrollView,
+  StyleSheet,
+  Text,
+  TextInput, TouchableOpacity,
+  View,
+} from 'react-native';
 import { useUser } from '../../hooks/useUser';
+import { db, storage } from '../../services/firebase';
 
 const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
 
@@ -47,7 +52,6 @@ await setDoc(doc(db, 'users', user.uid), {
   fname, lname, username, hall, avatarUrl,
 }, { merge: true });
 
-    // Update all seller's listings with new avatar
     const sellerListings = await getDocs(query(
       collection(db, 'listings'),
       where('sellerId', '==', user.uid)

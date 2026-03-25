@@ -12,6 +12,8 @@
       "bundleIdentifier": "com.pratyushjha.dormify",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
+        "NSCameraUsageDescription": "Dormify needs camera access to take photos of items you want to sell.",
+        "NSPhotoLibraryUsageDescription": "Dormify needs photo library access to upload photos of items you want to sell.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },

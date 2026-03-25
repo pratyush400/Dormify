@@ -1,6 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc, getDoc, onSnapshot, orderBy,
+  query, serverTimestamp, setDoc, where
+} from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert,
@@ -11,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
 
@@ -38,6 +44,39 @@ function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: {
   buyerAvatar: string;}){
       const router = useRouter();
   const [saved, setSaved] = useState(false);
+  const [isReported, setIsReported] = useState(false);
+
+    const handleReport = async (reason: string) => {
+    if (!currentUserId) return Alert.alert('Login Required', 'Please log in to report.');
+    try {
+      await addDoc(collection(db, 'reports'), {
+        listingId: item.id,
+        reportedBy: currentUserId,
+        reason,
+        createdAt: serverTimestamp(),
+      });
+      setIsReported(true); // Hides the card locally immediately
+    } catch (error) {
+      console.error("Report error:", error);
+      Alert.alert('Error', 'Could not report listing.');
+    }
+  };
+
+    const confirmReport = () => {
+    Alert.alert('Report Listing', 'Why are you reporting this?', [
+      { text: 'Spam', onPress: () => handleReport('spam') },
+      { text: 'Inappropriate', onPress: () => handleReport('inappropriate') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+    if (isReported) {
+    return (
+      <View style={[styles.card, { padding: 20, alignItems: 'center', opacity: 0.5 }]}>
+        <Text style={styles.locationText}>Listing reported and hidden</Text>
+      </View>
+    );
+  }
 
   const formatDate = (timestamp: any) => {
   if (!timestamp) return '';
@@ -49,6 +88,7 @@ function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: {
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
   return date.toLocaleDateString();
 };
+
 
 
 
@@ -102,9 +142,19 @@ const handleMessageSeller = async () => {
      >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/600/400' }}
+          source={{ uri: item.photos?.[0] || '/Users/pc/Dormify/Dormify/assets/images/error.jpeg' }}
           style={styles.image}
         />
+                <TouchableOpacity 
+          style={[styles.saveBtn, { right: 45 }]} // Position it next to the heart
+          onPress={confirmReport}
+        >
+          <Ionicons name="flag-outline" size={18} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
+          <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={saved ? '#ef4444' : '#fff'} />
+        </TouchableOpacity>
           <View style={styles.dateBadge}>
     <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
   </View>
@@ -153,22 +203,48 @@ export default function FeedScreen() {
   const { user } = useUser();
 
   
+useEffect(() => {
+  if (!user) return; // Ensure user is logged in to fetch reports
 
-  useEffect(() => {
-    const q = query(
-      collection(db, 'listings'),
-      where('sold', '==', false),
-      orderBy('createdAt', 'desc')
+  let unsubReports: () => void;
+  let unsubListings: () => void;
+
+  // 1. Listen for listings that are NOT SOLD
+  const listingsQuery = query(
+    collection(db, 'listings'),
+    where('sold', '==', false),
+    orderBy('createdAt', 'desc')
+  );
+
+  unsubListings = onSnapshot(listingsQuery, (snap) => {
+    const allListings = snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing));
+    
+    // 2. Listen for this user's reports to filter them out
+    const reportsQuery = query(
+      collection(db, 'reports'),
+      where('reportedBy', '==', user.uid)
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing)));
-      setLoading(false);
-    }, (error) => {
-      console.error('Query failed: ', error);
+
+    unsubReports = onSnapshot(reportsQuery, (reportSnap) => {
+      const reportedIds = reportSnap.docs.map(doc => doc.data().listingId);
+      
+      // Filter out any listing that has been reported by this user
+      const filtered = allListings.filter(item => !reportedIds.includes(item.id));
+      
+      setListings(filtered);
       setLoading(false);
     });
-    return () => unsub();
-  }, []);
+  }, (error) => {
+    console.error('Query failed: ', error);
+    setLoading(false);
+  });
+
+  return () => {
+    if (unsubListings) unsubListings();
+    if (unsubReports) unsubReports();
+  };
+}, [user]); // Re-run if user changes
+
 
   if (loading) {
     return (
