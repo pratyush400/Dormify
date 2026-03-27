@@ -8,12 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { auth, db } from '../../services/firebase';
@@ -77,6 +78,14 @@ export default function ProfileScreen() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
 
+  const [refreshTick, setRefreshTick] = useState(0);
+const [refreshing, setRefreshing] = useState(false);
+
+const onRefresh = () => {
+  setRefreshing(true);
+  setRefreshTick(t => t + 1);
+};
+
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -86,9 +95,10 @@ export default function ProfileScreen() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing)));
+      setRefreshing(false);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, refreshTick]);
 
   const activeListings = listings.filter(l => !l.sold);
   const soldListings = listings.filter(l => l.sold);
@@ -111,6 +121,14 @@ const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+          refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor="#6366f1"
+      colors={['#6366f1']}
+    />
+  }
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
           <TouchableOpacity onPress={() => router.push('/modal/edit-profile')}>

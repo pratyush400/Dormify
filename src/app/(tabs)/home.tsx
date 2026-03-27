@@ -1,3 +1,4 @@
+//src/app/(tabs)/home.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
@@ -10,11 +11,12 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert,
   FlatList, Image,
+  RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { useUser } from '../../hooks/useUser';
@@ -151,10 +153,6 @@ const handleMessageSeller = async () => {
         >
           <Ionicons name="flag-outline" size={18} color="#fff" />
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
-          <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={saved ? '#ef4444' : '#fff'} />
-        </TouchableOpacity>
           <View style={styles.dateBadge}>
     <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
   </View>
@@ -201,7 +199,13 @@ export default function FeedScreen() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
+  const [refreshing, setRefreshing] = useState(false);
 
+  const onRefresh = () => {
+  setRefreshing(true);
+  // onSnapshot is already live, so just briefly show the indicator
+  setTimeout(() => setRefreshing(false), 800);
+};
   
 useEffect(() => {
   if (!user) return; // Ensure user is logged in to fetch reports
@@ -276,10 +280,16 @@ renderItem={({ item }) => (
 
   />
 )}
-
-
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#e537df"
+          colors={['#e537df']}
+        />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIllustration}>🏠</Text>

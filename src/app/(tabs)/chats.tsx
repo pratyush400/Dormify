@@ -1,15 +1,21 @@
+// src/app/(tabs)/chats.tsx
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection, deleteDoc, doc, getDoc,
+  onSnapshot, query, where
+} from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
@@ -47,50 +53,101 @@ export default function ChatsScreen() {
   const { user } = useUser();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0); // ← triggers re-subscribe
   const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
-useEffect(() => {
-  if (!user) return;
-  
-  const q = query(
-    collection(db, 'chats'),
-    where('participants', 'array-contains', user.uid),
+
+  useEffect(() => {
+    if (!user) return;
+
+    setLoading(prev => refreshTick === 0 ? true : prev); // only show full loader on first mount
+
+    const q = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', user.uid),
+    );
+
+    const unsub = onSnapshot(q, async (snap) => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat));
+
+      // Verify the other participant actually exists in the users collection
+      const validityChecks = await Promise.all(
+        all.map(async (chat) => {
+          const isSellerMe = chat.sellerId === user.uid;
+          const otherId = isSellerMe ? chat.buyerId : chat.sellerId;
+          if (!otherId) return false;
+          try {
+            const userSnap = await getDoc(doc(db, 'users', otherId));
+            return userSnap.exists();
+          } catch {
+            return false;
+          }
+        })
+      );
+
+      const valid = all.filter((_, i) => validityChecks[i]);
+
+      // Deduplicate by listingId + buyerId
+      const seen = new Map<string, Chat>();
+      for (const chat of valid) {
+        const key = `${chat.listingId}_${chat.buyerId}`;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, chat);
+        } else {
+          const timeA = existing.lastMessageTime?.toDate?.() ?? new Date(0);
+          const timeB = chat.lastMessageTime?.toDate?.() ?? new Date(0);
+          if (timeB > timeA) seen.set(key, chat);
+        }
+      }
+
+      const data = Array.from(seen.values()).sort((a, b) => {
+        const timeA = a.lastMessageTime?.toDate?.() ?? new Date(0);
+        const timeB = b.lastMessageTime?.toDate?.() ?? new Date(0);
+        return timeB.getTime() - timeA.getTime();
+      });
+
+      setChats(data);
+      setLoading(false);
+      setRefreshing(false); // ← now guaranteed to fire
+    }, (error) => {
+      console.log('Chats error:', error);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    return () => unsub();
+  }, [user, refreshTick]); // ← re-subscribe on refresh
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setRefreshTick(t => t + 1); // forces useEffect to re-run
+  };
+
+  const handleDeleteChat = (chatId: string) => {
+    Alert.alert(
+      'Delete Chat',
+      'This will remove the conversation from your chats. The other person may still see it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'chats', chatId));
+            } catch (e) {
+              Alert.alert('Error', 'Could not delete chat.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const totalUnread = chats.reduce(
+    (sum, c) => sum + (c.unreadCount?.[user?.uid ?? ''] ?? 0), 0
   );
-  
-const unsub = onSnapshot(q, (snap) => {
-  const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat));
-
-  // deduplicate by listingId + buyerId
-  const seen = new Map<string, Chat>();
-  for (const chat of all) {
-    const key = `${chat.listingId}_${chat.buyerId}`;
-    const existing = seen.get(key);
-    if (!existing) {
-      seen.set(key, chat);
-    } else {
-      const timeA = existing.lastMessageTime?.toDate?.() ?? new Date(0);
-      const timeB = chat.lastMessageTime?.toDate?.() ?? new Date(0);
-      if (timeB > timeA) seen.set(key, chat);
-    }
-  }
-
-  const data = Array.from(seen.values()).sort((a, b) => {
-    const timeA = a.lastMessageTime?.toDate?.() ?? new Date(0);
-    const timeB = b.lastMessageTime?.toDate?.() ?? new Date(0);
-    return timeB.getTime() - timeA.getTime();
-  });
-
-  setChats(data);
-  setLoading(false);}
- ,(error) => {
-  console.log('Chats error:', error);
-  setLoading(false);
-});
-
-  
-  return () => unsub();
-}, [user]);
-
-  const totalUnread = chats.reduce((sum, c) => sum + (c.unreadCount?.[user?.uid ?? ''] ?? 0), 0);
 
   if (loading) {
     return (
@@ -115,11 +172,9 @@ const unsub = onSnapshot(q, (snap) => {
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
           const isSellerMe = item.sellerId === user?.uid;
-          const otherName = isSellerMe ? (item.buyerName ?? 'Yourself') : (item.sellerName ?? 'Seller');
+          const otherName = isSellerMe ? (item.buyerName ?? 'Unknown') : (item.sellerName ?? 'Unknown');
           const otherAvatar = isSellerMe ? (item.buyerAvatar ?? '') : (item.sellerAvatar ?? '');
           const unread = item.unreadCount?.[user?.uid ?? ''] ?? 0;
-
-
 
           return (
             <TouchableOpacity
@@ -135,24 +190,25 @@ const unsub = onSnapshot(q, (snap) => {
                   listingImage: item.listingImage,
                 }
               })}
+              onLongPress={() => handleDeleteChat(item.id)} // ← long press to delete
               activeOpacity={0.7}
             >
-            <TouchableOpacity
-              onPress={() => router.push({
-                pathname: '/modal/view-profile',
-                params: {
-                  uid: isSellerMe ? item.buyerId : item.sellerId,
-                  name: otherName,
-                  avatar: otherAvatar,
-                }
-              })}
-            >
-              <Image
-                source={otherAvatar ? { uri: otherAvatar } : DEFAULT_AVATAR}
-                style={styles.avatar}
-              />
-            </TouchableOpacity>
-      
+              <TouchableOpacity
+                onPress={() => router.push({
+                  pathname: '/modal/view-profile',
+                  params: {
+                    uid: isSellerMe ? item.buyerId : item.sellerId,
+                    name: otherName,
+                    avatar: otherAvatar,
+                  }
+                })}
+              >
+                <Image
+                  source={otherAvatar ? { uri: otherAvatar } : DEFAULT_AVATAR}
+                  style={styles.avatar}
+                />
+              </TouchableOpacity>
+
               <View style={styles.chatContent}>
                 <View style={styles.chatTop}>
                   <Text style={styles.sellerName}>{otherName}</Text>
@@ -165,6 +221,7 @@ const unsub = onSnapshot(q, (snap) => {
                   {item.lastMessage || 'No messages yet'}
                 </Text>
               </View>
+
               <View style={styles.chatRight}>
                 {item.listingImage ? (
                   <Image source={{ uri: item.listingImage }} style={styles.listingThumb} />
@@ -179,6 +236,14 @@ const unsub = onSnapshot(q, (snap) => {
           );
         }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💬</Text>
