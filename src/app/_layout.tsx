@@ -24,15 +24,20 @@ export default function RootLayout() {
     if (loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
+    const inIndex = segments[0] === undefined;
 
-    if (user && inAuthGroup) {
+    if (user && (inAuthGroup || inIndex)) {
+      // Logged in but stuck on login or index → go to app
       router.replace('/(tabs)/home');
-    } else if (!user && !inAuthGroup) {
+    } else if (!user && (inTabsGroup || inIndex)) {
+      // Logged out but in app or index → go to login
       router.replace('/(auth)/login');
     }
+    // Any other case (modal, listing, etc.) — don't redirect
   }, [user, loading, segments]);
 
-  if (loading) return null; // holds render until Firebase resolves
+  if (loading) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
