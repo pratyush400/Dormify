@@ -1,58 +1,48 @@
 // src/app/_layout.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { onAuthStateChanged, User, } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { DocumentReference, Firestore, doc as firestoreDoc, getDoc as firestoreGetDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import EulaModal from '../components/EulaModal';
 import { useNotifications } from '../hooks/useNotifications';
-import { auth, db } from '../services/firebase';
+import { auth } from '../services/firebase';
 
 export default function RootLayout() {
   useNotifications();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showEula, setShowEula] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
+  const [loading, setLoading] = useState(true); // overall init loading
+  const [showEula, setShowEula] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const accepted = await AsyncStorage.getItem('eulaAccepted');
-        if (!accepted) setShowEula(true);
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    setUser(firebaseUser);
+
+    if (firebaseUser) {
+      const accepted = await AsyncStorage.getItem('eulaAccepted');
+      if (!accepted) {
+        setShowEula(true);
+        setLoading(false);
+        return;
       }
       setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (loading || showEula) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
-    const inIndex = segments[0] === undefined;
-  if (user && (inAuthGroup || inIndex)) {
-    // Check if onboarding is done
-    getDoc(doc(db, 'users', user.uid)).then((snap) => {
-      const data = snap.data();
-      if (data?.onboardingComplete) {
-        router.replace('/(tabs)/home');
-      } else {
-        router.replace('/(auth)/onboard'); // ← your onboarding route
-      }
-    });
-  } else if (!user && (inTabsGroup || inIndex)) {
+      router.replace('/(tabs)/home');
+    } else {
+      setLoading(false);
       router.replace('/(auth)/login');
     }
-  }, [user, loading, segments, showEula]);
+  });
+  return unsubscribe;
+}, []);
 
-  const handleAcceptEula = async () => {
-    await AsyncStorage.setItem('eulaAccepted', 'true');
-    setShowEula(false);
-  };
-
+const handleAcceptEula = async () => {
+  await AsyncStorage.setItem('eulaAccepted', 'true');
+  setShowEula(false);
+  router.replace('/(tabs)/home');
+};
   if (loading) return null;
 
   return (
@@ -72,8 +62,6 @@ export default function RootLayout() {
 function getDoc(docRef: DocumentReference) {
   return firestoreGetDoc(docRef);
 }
-
 function doc(database: Firestore, collectionName: string, documentId: string) {
   return firestoreDoc(database, collectionName, documentId);
 }
-
