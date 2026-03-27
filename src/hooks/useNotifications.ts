@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useEffect } from 'react';
 import { db } from '../services/firebase';
 import { useUser } from './useUser';
 

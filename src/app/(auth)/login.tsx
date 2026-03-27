@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
+///Users/pc/Dormify/Dormify/src/app/(auth)/login.tsx
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ImageBackground,
+  View,
 } from 'react-native';
 
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 
 import { auth } from '../../services/firebase';
