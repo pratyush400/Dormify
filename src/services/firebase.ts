@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-
 const firebaseConfig = {
   apiKey: 'AIzaSyB8HZVV0Z71bu-arFd52pwrAoQD-MIBgiw',
   authDomain: 'dormify-now.firebaseapp.com',
@@ -13,13 +12,15 @@ const firebaseConfig = {
   appId: '1:283928198587:web:fe0bfac9fdcc5c90b9989e',
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const auth = getApps().length === 0
-  ? initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    })
+const auth = getApps().length === 0
+  ? initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })
   : getAuth(app);
+const storage = getStorage(app);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  localCache: persistentLocalCache(),
+});
 
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export { auth, db, storage };

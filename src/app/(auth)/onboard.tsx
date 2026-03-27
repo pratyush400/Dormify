@@ -1,6 +1,6 @@
-import React from 'react';
 import { useRouter } from 'expo-router';
-import { View, Image, StyleSheet, Text , TouchableOpacity} from 'react-native';
+import React from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
   const backgroundImage = require("@/assets/images/boarding.jpg");
   const backgroundImage2 = require("@/assets/images/bg2.jpg");

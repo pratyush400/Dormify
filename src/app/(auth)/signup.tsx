@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { setDoc, doc, serverTimestamp } from "firebase/firestore";
-import { useRef } from 'react';
-import { db } from '../../services/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import React, { useRef, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ImageBackground,
+  View,
 } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../services/firebase';
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
+import { auth, db } from '../../services/firebase';
 
 export default function SignupScreen() {
   const router = useRouter();

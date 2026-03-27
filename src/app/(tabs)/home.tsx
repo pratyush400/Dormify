@@ -1,4 +1,5 @@
 //src/app/(tabs)/home.tsx
+import { useBlockUser } from '@/hooks/useBlockUser';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
@@ -39,14 +40,16 @@ type Listing = {
   createdAt: any;
 };
 
-function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: { 
+function ListingCard({ item, currentUserId, buyerName, buyerAvatar, blockUser}: { 
     item: Listing; 
   currentUserId: string;
   buyerName: string;
-  buyerAvatar: string;}){
-      const router = useRouter();
+  buyerAvatar: string;
+  blockUser: (id: string, name: string) => void;}){
+  const router = useRouter();
   const [saved, setSaved] = useState(false);
   const [isReported, setIsReported] = useState(false);
+
 
     const handleReport = async (reason: string) => {
     if (!currentUserId) return Alert.alert('Login Required', 'Please log in to report.');
@@ -153,6 +156,12 @@ const handleMessageSeller = async () => {
         >
           <Ionicons name="flag-outline" size={18} color="#fff" />
         </TouchableOpacity>
+        <TouchableOpacity
+  style={[styles.saveBtn, { right: 78 }]}
+  onPress={() => blockUser(item.sellerId, item.sellerName)}
+>
+  <Ionicons name="ban-outline" size={18} color="#fff" />
+</TouchableOpacity>
           <View style={styles.dateBadge}>
     <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
   </View>
@@ -187,7 +196,7 @@ const handleMessageSeller = async () => {
         <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
 
         <TouchableOpacity style={styles.messageBtn} onPress={handleMessageSeller}>
-          <Ionicons name="chatbubble-outline" size={14} color="#6366f1" />
+          <Ionicons name="chatbubble-outline" size={14} color="#f1637d" />
           <Text style={styles.messageBtnText}>Message Seller</Text>
         </TouchableOpacity>
       </View>
@@ -200,7 +209,8 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
   const [refreshing, setRefreshing] = useState(false);
-
+    const [blockedIds, setBlockedIds] = useState<string[]>([]);
+const { blockUser } = useBlockUser(user?.uid ?? '');
   const onRefresh = () => {
   setRefreshing(true);
   // onSnapshot is already live, so just briefly show the indicator
@@ -214,6 +224,16 @@ useEffect(() => {
   let unsubListings: () => void;
 
   // 1. Listen for listings that are NOT SOLD
+
+  const blocksQuery = query(
+  collection(db, 'blocks'),
+  where('blockerId', '==', user.uid)
+);
+
+const unsubBlocks = onSnapshot(blocksQuery, (snap) => {
+  setBlockedIds(snap.docs.map(d => d.data().blockedId));
+});
+
   const listingsQuery = query(
     collection(db, 'listings'),
     where('sold', '==', false),
@@ -233,7 +253,9 @@ useEffect(() => {
       const reportedIds = reportSnap.docs.map(doc => doc.data().listingId);
       
       // Filter out any listing that has been reported by this user
-      const filtered = allListings.filter(item => !reportedIds.includes(item.id));
+      const filtered = allListings
+      .filter(item => !reportedIds.includes(item.id))
+      .filter(item => !blockedIds.includes(item.sellerId));
       
       setListings(filtered);
       setLoading(false);
@@ -246,6 +268,7 @@ useEffect(() => {
   return () => {
     if (unsubListings) unsubListings();
     if (unsubReports) unsubReports();
+    unsubBlocks();
   };
 }, [user]); // Re-run if user changes
 
@@ -277,7 +300,7 @@ renderItem={({ item }) => (
     currentUserId={user?.uid ?? ''} 
     buyerName={user ? `${user.fname} ${user.lname}` : ''}
     buyerAvatar={user?.avatarUrl ?? ''}
-
+    blockUser={blockUser} 
   />
 )}
         contentContainerStyle={styles.feed}

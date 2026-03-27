@@ -1,8 +1,8 @@
 // src/app/(tabs)/profile.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -50,7 +50,7 @@ function MyListingCard({ item }: { item: Listing }) {
   return (
     <TouchableOpacity style={styles.listingCard} activeOpacity={0.85} onPress={() => router.push(`/listing/${item.id}`)}>
       <Image
-        source={{ uri: item.photos?.[0] || 'https://picsum.photos/seed/placeholder/300/200' }}
+        source={{ uri: item.photos?.[0] || 'error.jpeg' }}
         style={styles.listingImage}
       />
       {item.sold && (
@@ -108,6 +108,61 @@ const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
     await signOut(auth);
     router.replace('/(auth)/login');
   };
+  const handleDeleteAccount = () => {
+  Alert.alert(
+    'Delete Account',
+    'This will permanently delete your account, listings, and all data. This cannot be undone.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => promptReauthAndDelete(),
+      },
+    ]
+  );
+};
+
+const promptReauthAndDelete = () => {
+  Alert.prompt(
+    'Confirm Password',
+    'Enter your password to confirm account deletion.',
+    async (password) => {
+      if (!password || !user) return;
+      try {
+        const credential = EmailAuthProvider.credential(user.email!, password);
+        await reauthenticateWithCredential(auth.currentUser!, credential);
+
+        // Delete all their listings
+        const listingsSnap = await getDocs(
+          query(collection(db, 'listings'), where('sellerId', '==', user.uid))
+        );
+        await Promise.all(listingsSnap.docs.map(d => deleteDoc(d.ref)));
+
+        // Delete their chats
+        const chatsSnap = await getDocs(
+          query(collection(db, 'chats'), where('participants', 'array-contains', user.uid))
+        );
+        await Promise.all(chatsSnap.docs.map(d => deleteDoc(d.ref)));
+
+        // Delete their Firestore user document
+        await deleteDoc(doc(db, 'users', user.uid));
+
+        // Delete the Firebase Auth account — must be last
+        await deleteUser(auth.currentUser!);
+
+        router.replace('/(auth)/login');
+      } catch (e: any) {
+        if (e.code === 'auth/wrong-password') {
+          Alert.alert('Wrong Password', 'The password you entered is incorrect.');
+        } else {
+          Alert.alert('Error', e.message);
+        }
+      }
+    },
+    'secure-text'
+  );
+};
 
   if (loading) {
     return (
@@ -118,113 +173,117 @@ const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
   }
   
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-          refreshControl={
-    <RefreshControl
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      tintColor="#6366f1"
-      colors={['#6366f1']}
-    />
-  }
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity onPress={() => router.push('/modal/edit-profile')}>
-            <Ionicons name="create-outline" size={24} color="#6366f1" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: user?.avatarUrl || DEFAULT_AVATAR }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.avatarEditBtn} onPress={() => router.push('/modal/edit-profile')}>
-              <Ionicons name="camera" size={14} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.fullName}>{user?.fname} {user?.lname}</Text>
-          <Text style={styles.username}>@{user?.username}</Text>
-
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={14} color="#9ca3af" />
-            <Text style={styles.infoText}>{user?.hall || 'No hall set'} · {user?.college}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={14} color="#9ca3af" />
-            <Text style={styles.infoText}>{user?.email}</Text>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{activeListings.length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{soldListings.length}</Text>
-              <Text style={styles.statLabel}>Sold</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{listings.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'active' && styles.tabActive]}
-            onPress={() => setActiveTab('active')}
-          >
-            <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
-              Active ({activeListings.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'sold' && styles.tabActive]}
-            onPress={() => setActiveTab('sold')}
-          >
-            <Text style={[styles.tabText, activeTab === 'sold' && styles.tabTextActive]}>
-              Sold ({soldListings.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {displayed.length > 0 ? (
-          <View style={styles.grid}>
-            {displayed.map(item => <MyListingCard key={item.id} item={item} />)}
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>{activeTab === 'active' ? '🛋️' : '🏷️'}</Text>
-            <Text style={styles.emptyText}>
-              {activeTab === 'active' ? 'No active listings' : 'Nothing sold yet'}
-            </Text>
-            {activeTab === 'active' && (
-              <TouchableOpacity style={styles.sellNowBtn} onPress={() => router.push('/(tabs)/sell')}>
-                <Text style={styles.sellNowText}>Post a Listing</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-          <Text style={styles.signOutText}>Sign Out</Text>
+return (
+  <SafeAreaView style={styles.container}>
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#6366f1"
+          colors={['#6366f1']}
+        />
+      }
+    >
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity onPress={() => router.push('/modal/edit-profile')}>
+          <Ionicons name="create-outline" size={24} color="#6366f1" />
         </TouchableOpacity>
+      </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </SafeAreaView>
-  );
+      <View style={styles.profileCard}>
+        <View style={styles.avatarContainer}>
+          <Image
+            source={{ uri: user?.avatarUrl || DEFAULT_AVATAR }}
+            style={styles.avatar}
+          />
+          <TouchableOpacity style={styles.avatarEditBtn} onPress={() => router.push('/modal/edit-profile')}>
+            <Ionicons name="camera" size={14} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.fullName}>{user?.fname} {user?.lname}</Text>
+        <Text style={styles.username}>@{user?.username}</Text>
+        <View style={styles.infoRow}>
+          <Ionicons name="location-outline" size={14} color="#9ca3af" />
+          <Text style={styles.infoText}>{user?.hall || 'No hall set'} · {user?.college}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="mail-outline" size={14} color="#9ca3af" />
+          <Text style={styles.infoText}>{user?.email}</Text>
+        </View>
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{activeListings.length}</Text>
+            <Text style={styles.statLabel}>Active</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{soldListings.length}</Text>
+            <Text style={styles.statLabel}>Sold</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{listings.length}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'active' && styles.tabActive]}
+          onPress={() => setActiveTab('active')}
+        >
+          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
+            Active ({activeListings.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'sold' && styles.tabActive]}
+          onPress={() => setActiveTab('sold')}
+        >
+          <Text style={[styles.tabText, activeTab === 'sold' && styles.tabTextActive]}>
+            Sold ({soldListings.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {displayed.length > 0 ? (
+        <View style={styles.grid}>
+          {displayed.map(item => <MyListingCard key={item.id} item={item} />)}
+        </View>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>{activeTab === 'active' ? '🛋️' : '🏷️'}</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'active' ? 'No active listings' : 'Nothing sold yet'}
+          </Text>
+          {activeTab === 'active' && (
+            <TouchableOpacity style={styles.sellNowBtn} onPress={() => router.push('/(tabs)/sell')}>
+              <Text style={styles.sellNowText}>Post a Listing</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Sign Out */}
+      <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+
+      {/* Delete Account */}
+      <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDeleteAccount}>
+        <Ionicons name="trash-outline" size={18} color="#d02942" />
+        <Text style={styles.deleteAccountText}>Delete Account</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -309,4 +368,12 @@ const styles = StyleSheet.create({
     padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#fecaca', backgroundColor: '#fff',
   },
   signOutText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  deleteAccountBtn: {
+  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+  gap: 8, marginHorizontal: 16, marginTop: 12,
+  padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff',
+},
+deleteAccountText: {
+  color: '#de2841', fontWeight: '600', fontSize: 15,
+},
 });

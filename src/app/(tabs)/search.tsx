@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
-  SafeAreaView, TextInput, ScrollView, Modal,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, query as fsQuery, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query as fsQuery, onSnapshot, orderBy } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import {
+  FlatList, Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { db } from '../../services/firebase';
 
 const CATEGORIES = [
