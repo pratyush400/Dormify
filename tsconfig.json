@@ -9,7 +9,8 @@
       "@/assets/*": [
         "./assets/*"
       ],
-      "@firebase/auth": ["./node_modules/@firebase/auth/dist/index.rn.d.ts"]
+      "@firebase/auth": ["./node_modules/@firebase/auth/dist/index.rn.d.ts"],
+      "@react-native-community/datetimepicker" : ["./node_modules/@react-native-community/datetimepicker"]
     }
   },
   "include": [

@@ -60,7 +60,7 @@ export default function TabsLayout() {
           title: "Campus",
           tabBarIcon: ({ color, size }) => (
             <Image
-              source={require('@/assets/images/campus.png')}
+              source={require('/Users/pc/Dormify/Dormify/assets/images/img.png')}
               style={{
                 width: size,
                 height: size,
@@ -74,7 +74,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="sell"
         options={{
-          title: "Sell",
+          title: "Post",
           tabBarIcon: ({ color, size }) => (
             <Image
               source={require('@/assets/images/sell.png')}

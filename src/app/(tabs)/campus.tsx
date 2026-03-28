@@ -2,12 +2,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-    arrayRemove, arrayUnion, collection, doc,
-    onSnapshot, orderBy, query, updateDoc, where
+    arrayRemove, arrayUnion, collection,
+    deleteDoc,
+    doc,
+    onSnapshot, orderBy, query, updateDoc
 } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, Image,
+    ActivityIndicator,
+    Alert,
+    FlatList, Image,
     RefreshControl, SafeAreaView, StyleSheet,
     Text, TouchableOpacity, View
 } from 'react-native';
@@ -31,6 +35,23 @@ type Event = {
 
 function EventCard({ item, currentUserId }: { item: Event; currentUserId: string }) {
   const isInterested = item.interested?.includes(currentUserId);
+
+    const handleDelete = () => {
+      Alert.alert(
+        'Delete Event',
+        'Are you sure you want to delete this Event? Looks cool imo',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await deleteDoc(doc(db, 'events', item.id));
+            }
+          }
+        ]
+      );
+    };
 
   const handleToggleInterested = async () => {
     if (!currentUserId) return;
@@ -65,6 +86,10 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
         <View style={styles.eventImagePlaceholder}>
           <Text style={styles.eventImagePlaceholderText}>📅</Text>
         </View>
+      )}{currentUserId === item.authorId && (
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={14} color="#fff" />
+            </TouchableOpacity>
       )}
       {isPast() && (
         <View style={styles.pastBadge}>
@@ -95,7 +120,6 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
           </View>
 
           <View style={styles.interestedSection}>
-            {/* Show up to 3 interested avatars */}
             {(item.interested?.length ?? 0) > 0 && (
               <View style={styles.interestedAvatars}>
                 {item.interested.slice(0, 3).map((uid, i) => (
@@ -114,7 +138,7 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
               <Ionicons
                 name={isInterested ? 'star' : 'star-outline'}
                 size={14}
-                color={isInterested ? '#fff' : '#6366f1'}
+                color={isInterested ? '#fff' : '#ef63f1'}
               />
               <Text style={[styles.interestedBtnText, isInterested && styles.interestedBtnTextActive]}>
                 {item.interested?.length ?? 0} Interested
@@ -137,24 +161,24 @@ export default function CampusScreen() {
   const [showUpcoming, setShowUpcoming] = useState(true);
 
   useEffect(() => {
-    if (!user?.college) return;
-    const q = query(
-      collection(db, 'events'),
-      where('college', '==', user.college),
-      orderBy('eventDate', 'asc')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Event));
-      setEvents(all);
-      setLoading(false);
-      setRefreshing(false);
-    }, (err) => {
-      console.error('Events error:', err);
-      setLoading(false);
-      setRefreshing(false);
-    });
-    return () => unsub();
-  }, [user, refreshTick]);
+  if (!user) return;
+
+  const q = query(
+    collection(db, 'events'),
+    orderBy('eventDate', 'asc')
+  );
+  const unsub = onSnapshot(q, (snap) => {
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Event));
+    setEvents(all);
+    setLoading(false);
+    setRefreshing(false);
+  }, (err) => {
+    console.error('Events error:', err);
+    setLoading(false);
+    setRefreshing(false);
+  });
+  return () => unsub();
+}, [user, refreshTick]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -172,7 +196,7 @@ export default function CampusScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#ef63f1" />
       </View>
     );
   }
@@ -278,4 +302,10 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151' },
   emptySubtext: { fontSize: 14, color: '#9ca3af' },
+
+   deleteBtn: {
+  position: 'absolute', top: 6, right: 6,
+  backgroundColor: 'rgba(239,68,68,0.85)',
+  borderRadius: 8, padding: 5,
+},
 });

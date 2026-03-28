@@ -1,3 +1,4 @@
+//src/hooks/useNotifications.ts
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -36,10 +37,10 @@ export function useNotifications() {
 
     if (finalStatus !== 'granted') return;
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
+    const token = (await Notifications.getExpoPushTokenAsync({
+  projectId: 'a4e8edce-5c2a-4f7b-9a36-a27aae2b82b8', 
+})).data;
 
-    // save token to user's Firestore doc
     if (user) {
       await updateDoc(doc(db, 'users', user.uid), {
         expoPushToken: token,
