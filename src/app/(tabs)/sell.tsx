@@ -19,7 +19,7 @@ import { useUser } from '../../hooks/useUser';
 import { auth, db, storage } from '../../services/firebase'; // Adjust path if needed
 
 const CATEGORIES = ['Furniture', 'Books', 'Electronics', 'Clothing', 'Kitchen', 'Bedding', 'Sports', 'Other'];
-const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
 const CONDITIONS = ['New', 'Used'];
 
 export default function SellScreen() {

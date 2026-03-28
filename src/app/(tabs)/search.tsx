@@ -25,7 +25,7 @@ const CATEGORIES = [
   { id: '8', label: 'Other', icon: '📦' },
 ];
 
-const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
 
 type Listing = {
   id: string;

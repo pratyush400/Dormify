@@ -4,9 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
   addDoc,
-  collection,
-  doc, getDoc, onSnapshot, orderBy,
-  query, serverTimestamp, setDoc, where
+  collection, deleteDoc, doc, getDoc, onSnapshot, orderBy,
+  query, serverTimestamp, setDoc, where,
 } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
@@ -40,12 +39,15 @@ type Listing = {
   createdAt: any;
 };
 
-function ListingCard({ item, currentUserId, buyerName, buyerAvatar, blockUser}: { 
-    item: Listing; 
+function ListingCard({ item, currentUserId, buyerName, buyerAvatar, blockUser, isSaved, onToggleSave }: { 
+  item: Listing; 
   currentUserId: string;
   buyerName: string;
   buyerAvatar: string;
-  blockUser: (id: string, name: string) => void;}){
+  blockUser: (id: string, name: string) => void;
+  isSaved: boolean;
+  onToggleSave: (id: string) => void;
+}){
   const router = useRouter();
   const [saved, setSaved] = useState(false);
   const [isReported, setIsReported] = useState(false);
@@ -96,33 +98,32 @@ function ListingCard({ item, currentUserId, buyerName, buyerAvatar, blockUser}: 
 
 
 
-
 const handleMessageSeller = async () => {
   if (!currentUserId) return Alert.alert('Login Required', 'Please log in.');
   if (currentUserId === item.sellerId) return Alert.alert('Note', 'This is your own listing!');
-
   try {
-    const chatId = `${currentUserId}_${item.sellerId}`;
+    // Include listingId so each listing has its own chat
+    const chatId = `${currentUserId}_${item.sellerId}_${item.id}`;
     const chatRef = doc(db, 'chats', chatId);
     const chatSnap = await getDoc(chatRef);
-
     if (!chatSnap.exists()) {
-            console.log('CREATING CHAT WITH ID:', chatId);
-        await setDoc(chatRef, {
-          buyerId: currentUserId,
-          buyerName,
-          buyerAvatar,
-          sellerId: item.sellerId,
-          participants: [currentUserId, item.sellerId],
-          lastMessage: '',
-          lastMessageTime: serverTimestamp(),
-          unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
-          sellerName: item.sellerName,
-          sellerAvatar: item.sellerAvatar,
-          createdAt: serverTimestamp(),
-        });
+      await setDoc(chatRef, {
+        buyerId: currentUserId,
+        buyerName,
+        buyerAvatar,
+        sellerId: item.sellerId,
+        listingId: item.id,
+        listingTitle: item.title,
+        listingImage: item.photos?.[0] || '',
+        participants: [currentUserId, item.sellerId],
+        lastMessage: '',
+        lastMessageTime: serverTimestamp(),
+        unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
+        sellerName: item.sellerName,
+        sellerAvatar: item.sellerAvatar,
+        createdAt: serverTimestamp(),
+      });
     }
-
     router.push({
       pathname: '/modal/chat',
       params: {
@@ -165,13 +166,13 @@ const handleMessageSeller = async () => {
           <View style={styles.dateBadge}>
     <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
   </View>
-        <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
-          <Ionicons
-            name={saved ? 'heart' : 'heart-outline'}
-            size={20}
-            color={saved ? '#ef4444' : '#fff'}
-          />
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.saveBtn} onPress={() => onToggleSave(item.id)}>
+  <Ionicons
+    name={isSaved ? 'heart' : 'heart-outline'}
+    size={20}
+    color={isSaved ? '#ef4444' : '#fff'}
+  />
+</TouchableOpacity>
         <View style={styles.priceBadge}>
           <Text style={styles.priceText}>${item.price}</Text>
         </View>
@@ -211,6 +212,32 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
     const [blockedIds, setBlockedIds] = useState<string[]>([]);
 const { blockUser } = useBlockUser(user?.uid ?? '');
+const [savedIds, setSavedIds] = useState<string[]>([]);
+const [showSaved, setShowSaved] = useState(false);
+useEffect(() => {
+  if (!user) return;
+  const q = query(collection(db, 'saves'), where('userId', '==', user.uid));
+  const unsub = onSnapshot(q, (snap) => {
+    setSavedIds(snap.docs.map(d => d.data().listingId));
+  });
+  return () => unsub();
+}, [user]);
+
+const handleToggleSave = async (listingId: string) => {
+  if (!user) return;
+  const saveId = `${user.uid}_${listingId}`;
+  const saveRef = doc(db, 'saves', saveId);
+  if (savedIds.includes(listingId)) {
+    await deleteDoc(saveRef);
+  } else {
+    await setDoc(saveRef, { userId: user.uid, listingId, createdAt: serverTimestamp() });
+  }
+};
+
+const displayedListings = showSaved
+  ? listings.filter(item => savedIds.includes(item.id))
+  : listings;
+
   const onRefresh = () => {
   setRefreshing(true);
   // onSnapshot is already live, so just briefly show the indicator
@@ -286,13 +313,17 @@ const unsubBlocks = onSnapshot(blocksQuery, (snap) => {
     <SafeAreaView style={styles.container}>
     <View style={styles.header}>
         <Text style={styles.headerTitle}>Dormify</Text>
-        <TouchableOpacity>
-          <Ionicons name="notifications-outline" size={24} color="#111827" />
-        </TouchableOpacity>
+<TouchableOpacity onPress={() => setShowSaved(s => !s)}>
+  <Ionicons
+    name={showSaved ? 'heart' : 'heart-outline'}
+    size={24}
+    color={showSaved ? '#ef4444' : '#111827'}
+  />
+</TouchableOpacity>
       </View>
 
       <FlatList
-        data={listings}
+        data={displayedListings} 
         keyExtractor={(item) => item.id}
 renderItem={({ item }) => (
   <ListingCard 
@@ -301,6 +332,8 @@ renderItem={({ item }) => (
     buyerName={user ? `${user.fname} ${user.lname}` : ''}
     buyerAvatar={user?.avatarUrl ?? ''}
     blockUser={blockUser} 
+    isSaved={savedIds.includes(item.id)}
+    onToggleSave={handleToggleSave}
   />
 )}
         contentContainerStyle={styles.feed}
@@ -315,8 +348,10 @@ renderItem={({ item }) => (
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIllustration}>🏠</Text>
-            <Text style={styles.emptyTitle}>Your school's Dormify{'\n'}seems to be empty...</Text>
+            <Text style={styles.emptyIllustration}>{showSaved ? '❤️' : '🏠'}</Text>
+            <Text style={styles.emptyTitle}>
+        {showSaved ? 'No saved listings yet' : "Your school's Dormify\nseems to be empty..."}
+      </Text>
             <Text style={styles.emptySubtext}>Be the first to post a listing{'\n'}and get things moving!</Text>
           </View>
         }

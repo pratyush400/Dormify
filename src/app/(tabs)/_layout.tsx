@@ -55,6 +55,23 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="campus"
+        options={{
+          title: "Campus",
+          tabBarIcon: ({ color, size }) => (
+            <Image
+              source={require('@/assets/images/campus.png')}
+              style={{
+                width: size,
+                height: size,
+                tintColor: color,
+              }}
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="sell"
         options={{
           title: "Sell",

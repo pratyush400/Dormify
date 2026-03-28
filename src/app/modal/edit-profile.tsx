@@ -17,7 +17,7 @@ import {
 import { useUser } from '../../hooks/useUser';
 import { db, storage } from '../../services/firebase';
 
-const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments'];
+const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
 
 export default function EditProfileScreen() {
   const router = useRouter();
