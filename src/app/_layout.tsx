@@ -15,54 +15,34 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  // 1. Listen for Auth Changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const accepted = await AsyncStorage.getItem('eulaAccepted');
-        if (!accepted) setShowEula(true);
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    setUser(firebaseUser);
+
+    if (firebaseUser) {
+      const accepted = await AsyncStorage.getItem('eulaAccepted');
+      if (!accepted) {
+        setShowEula(true);
+        setLoading(false);
+        return;
       }
-      
-      // Mark as initialized only AFTER the first real check is done
-      setIsAuthInitialized(true); 
       setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  // 2. Handle Navigation only after Initialization
-  useEffect(() => {
-    // CRITICAL: Stop if auth isn't fully initialized yet
-    if (!isAuthInitialized || loading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
-
-    if (user && !showEula) {
-      // Logged in: Go home if not already there
-      if (!inTabsGroup) {
-        router.replace('/(tabs)/home');
-      }
-    } else if (!user) {
-      // Logged out: Go to login if not already there
-      if (!inAuthGroup) {
-        router.replace('/(auth)/login');
-      }
+      router.replace('/(tabs)/home');
+    } else {
+      setLoading(false);
+      router.replace('/(auth)/login');
     }
-  }, [user, isAuthInitialized, loading, showEula, segments]);
+  });
+  return unsubscribe;
+}, []);
 
-  // Still show nothing or a splash until initial check is complete
-  if (!isAuthInitialized) return null;
-  
 const handleAcceptEula = async () => {
   await AsyncStorage.setItem('eulaAccepted', 'true');
   setShowEula(false);
   router.replace('/(tabs)/home');
 };
-  if (loading) return null;
+
+  if (loading) return;
 
   return (
     <>
