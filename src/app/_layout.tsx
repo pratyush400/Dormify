@@ -17,18 +17,22 @@ export default function RootLayout() {
   const [showEula, setShowEula] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // 1. Add a second useEffect to handle the actual navigation
 useEffect(() => {
-  if (loading) return; // Don't run until Firebase check is done
+  if (loading) return;
 
+  const inTabsGroup = segments[0] === '(tabs)';
   const inAuthGroup = segments[0] === '(auth)';
 
   if (user && !showEula) {
-    // If logged in and EULA is done, go home
-    router.replace('/(tabs)/home');
+    // ONLY redirect if we aren't already in the tabs/home section
+    if (!inTabsGroup) {
+      router.replace('/(tabs)/home');
+    }
   } else if (!user) {
-    // If not logged in, go to login
-    router.replace('/(auth)/login');
+    // ONLY redirect if we aren't already in the auth/login section
+    if (!inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
   }
 }, [user, loading, showEula, segments]);
 
