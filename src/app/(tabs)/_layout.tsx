@@ -60,7 +60,7 @@ export default function TabsLayout() {
           title: "Campus",
           tabBarIcon: ({ color, size }) => (
             <Image
-              source={require('/Users/pc/Dormify/Dormify/assets/images/img.png')}
+              source={require('@/assets/images/img.png')}
               style={{
                 width: size,
                 height: size,
