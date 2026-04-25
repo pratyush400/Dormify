@@ -2,26 +2,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-  addDoc,
-  collection,
-  doc, getDoc, onSnapshot, orderBy,
-  query, serverTimestamp, setDoc, where
+  collection, onSnapshot, orderBy,
+  query, where
 } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Alert,
+  ActivityIndicator,
   FlatList, Image,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
-
 
 type Listing = {
   id: string;
@@ -35,161 +34,50 @@ type Listing = {
   sellerAvatar: string;
   hall: string;
   college: string;
+  category?: string;
   sold: boolean;
   createdAt: any;
 };
 
-function ListingCard({ item, currentUserId, buyerName, buyerAvatar}: { 
-    item: Listing; 
-  currentUserId: string;
-  buyerName: string;
-  buyerAvatar: string;}){
-      const router = useRouter();
-  const [saved, setSaved] = useState(false);
-  const [isReported, setIsReported] = useState(false);
+const CATEGORIES = [
+  { key: 'All', icon: 'apps-outline' as const },
+  { key: 'Furniture', icon: 'bed-outline' as const },
+  { key: 'Electronics', icon: 'laptop-outline' as const },
+  { key: 'Books', icon: 'book-outline' as const },
+  { key: 'Clothing', icon: 'shirt-outline' as const },
+  { key: 'Kitchen', icon: 'restaurant-outline' as const },
+  { key: 'Bedding', icon: 'moon-outline' as const },
+  { key: 'Sports', icon: 'basketball-outline' as const },
+  { key: 'Other', icon: 'ellipsis-horizontal' as const },
+];
 
-    const handleReport = async (reason: string) => {
-    if (!currentUserId) return Alert.alert('Login Required', 'Please log in to report.');
-    try {
-      await addDoc(collection(db, 'reports'), {
-        listingId: item.id,
-        reportedBy: currentUserId,
-        reason,
-        createdAt: serverTimestamp(),
-      });
-      setIsReported(true); // Hides the card locally immediately
-    } catch (error) {
-      console.error("Report error:", error);
-      Alert.alert('Error', 'Could not report listing.');
-    }
-  };
-
-    const confirmReport = () => {
-    Alert.alert('Report Listing', 'Why are you reporting this?', [
-      { text: 'Spam', onPress: () => handleReport('spam') },
-      { text: 'Inappropriate', onPress: () => handleReport('inappropriate') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
-    if (isReported) {
-    return (
-      <View style={[styles.card, { padding: 20, alignItems: 'center', opacity: 0.5 }]}>
-        <Text style={styles.locationText}>Listing reported and hidden</Text>
-      </View>
-    );
-  }
-
-  const formatDate = (timestamp: any) => {
-  if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const diff = (Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return date.toLocaleDateString();
-};
-
-
-
-
-const handleMessageSeller = async () => {
-  if (!currentUserId) return Alert.alert('Login Required', 'Please log in.');
-  if (currentUserId === item.sellerId) return Alert.alert('Note', 'This is your own listing!');
-
-  try {
-    const chatId = `${currentUserId}_${item.sellerId}`;
-    const chatRef = doc(db, 'chats', chatId);
-    const chatSnap = await getDoc(chatRef);
-
-    if (!chatSnap.exists()) {
-            console.log('CREATING CHAT WITH ID:', chatId);
-        await setDoc(chatRef, {
-          buyerId: currentUserId,
-          buyerName,
-          buyerAvatar,
-          sellerId: item.sellerId,
-          participants: [currentUserId, item.sellerId],
-          lastMessage: '',
-          lastMessageTime: serverTimestamp(),
-          unreadCount: { [currentUserId]: 0, [item.sellerId]: 0 },
-          sellerName: item.sellerName,
-          sellerAvatar: item.sellerAvatar,
-          createdAt: serverTimestamp(),
-        });
-    }
-
-    router.push({
-      pathname: '/modal/chat',
-      params: {
-        chatId,
-        sellerId: item.sellerId,
-        sellerName: item.sellerName,
-        sellerAvatar: item.sellerAvatar,
-        listingTitle: item.title,
-        listingImage: item.photos?.[0] || '',
-      }
-    });
-  } catch (error: any) {
-    console.error('Chat error:', error.message);
-    Alert.alert('Error', error.message);
-  }
-};
+function ProductCard({ item }: { item: Listing }) {
+  const router = useRouter();
+  const locationLabel = item.hall || 'Campus';
+  const photoUri = item.photos?.[0];
 
   return (
-    <TouchableOpacity style={styles.card}
-     activeOpacity={0.92} 
-     onPress={() => router.push(`/listing/${item.id}`)}
-     >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: item.photos?.[0] || '/Users/pc/Dormify/Dormify/assets/images/error.jpeg' }}
-          style={styles.image}
-        />
-                <TouchableOpacity 
-          style={[styles.saveBtn, { right: 45 }]} // Position it next to the heart
-          onPress={confirmReport}
-        >
-          <Ionicons name="flag-outline" size={18} color="#fff" />
-        </TouchableOpacity>
-          <View style={styles.dateBadge}>
-    <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-  </View>
-        <TouchableOpacity style={styles.saveBtn} onPress={() => setSaved(!saved)}>
-          <Ionicons
-            name={saved ? 'heart' : 'heart-outline'}
-            size={20}
-            color={saved ? '#ef4444' : '#fff'}
-          />
-        </TouchableOpacity>
-        <View style={styles.priceBadge}>
-          <Text style={styles.priceText}>${item.price}</Text>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.9}
+      onPress={() => router.push(`/listing/${item.id}`)}
+    >
+      {photoUri ? (
+        <Image source={{ uri: photoUri }} style={styles.cardImage} />
+      ) : (
+        <View style={[styles.cardImage, styles.cardImageFallback]}>
+          <Ionicons name="image-outline" size={32} color="#9ca3af" />
         </View>
-      </View>
-
+      )}
       <View style={styles.cardBody}>
-        <View style={styles.sellerRow}>
-          <Image
-    source={item.sellerAvatar ? { uri: item.sellerAvatar } : require('@/assets/images/davatar.jpg')}
-    style={styles.avatar}
-  />
-          <View>
-            <Text style={styles.sellerName}>{item.sellerName}</Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={11} color="#9ca3af" />
-              <Text style={styles.locationText}>{item.hall} · {item.college}</Text>
-            </View>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardPrice}>${item.price}</Text>
+          <View style={styles.locationPill}>
+            <Ionicons name="location" size={10} color="#1f2d4d" />
+            <Text style={styles.locationPillText} numberOfLines={1}>{locationLabel}</Text>
           </View>
         </View>
-
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-
-        <TouchableOpacity style={styles.messageBtn} onPress={handleMessageSeller}>
-          <Ionicons name="chatbubble-outline" size={14} color="#6366f1" />
-          <Text style={styles.messageBtnText}>Message Seller</Text>
-        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -200,95 +88,134 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [searchText, setSearchText] = useState('');
 
   const onRefresh = () => {
-  setRefreshing(true);
-  // onSnapshot is already live, so just briefly show the indicator
-  setTimeout(() => setRefreshing(false), 800);
-};
-  
-useEffect(() => {
-  if (!user) return; // Ensure user is logged in to fetch reports
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 800);
+  };
 
-  let unsubReports: () => void;
-  let unsubListings: () => void;
+  useEffect(() => {
+    if (!user) return;
 
-  // 1. Listen for listings that are NOT SOLD
-  const listingsQuery = query(
-    collection(db, 'listings'),
-    where('sold', '==', false),
-    orderBy('createdAt', 'desc')
-  );
+    let unsubReports: () => void;
+    let unsubListings: () => void;
 
-  unsubListings = onSnapshot(listingsQuery, (snap) => {
-    const allListings = snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing));
-    
-    // 2. Listen for this user's reports to filter them out
-    const reportsQuery = query(
-      collection(db, 'reports'),
-      where('reportedBy', '==', user.uid)
+    const listingsQuery = query(
+      collection(db, 'listings'),
+      where('sold', '==', false),
+      orderBy('createdAt', 'desc')
     );
 
-    unsubReports = onSnapshot(reportsQuery, (reportSnap) => {
-      const reportedIds = reportSnap.docs.map(doc => doc.data().listingId);
-      
-      // Filter out any listing that has been reported by this user
-      const filtered = allListings.filter(item => !reportedIds.includes(item.id));
-      
-      setListings(filtered);
+    unsubListings = onSnapshot(listingsQuery, (snap) => {
+      const allListings = snap.docs.map(d => ({ ...(d.data() as any), id: d.id } as Listing));
+
+      const reportsQuery = query(
+        collection(db, 'reports'),
+        where('reportedBy', '==', user.uid)
+      );
+
+      unsubReports = onSnapshot(reportsQuery, (reportSnap) => {
+        const reportedIds = reportSnap.docs.map(doc => doc.data().listingId);
+        const filtered = allListings.filter(item => !reportedIds.includes(item.id));
+        setListings(filtered);
+        setLoading(false);
+      });
+    }, (error) => {
+      console.error('Query failed: ', error);
       setLoading(false);
     });
-  }, (error) => {
-    console.error('Query failed: ', error);
-    setLoading(false);
-  });
 
-  return () => {
-    if (unsubListings) unsubListings();
-    if (unsubReports) unsubReports();
-  };
-}, [user]); // Re-run if user changes
+    return () => {
+      if (unsubListings) unsubListings();
+      if (unsubReports) unsubReports();
+    };
+  }, [user]);
 
+  const filteredListings = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    return listings.filter(l => {
+      if (activeCategory !== 'All' && l.category !== activeCategory) return false;
+      if (q && !l.title?.toLowerCase().includes(q) && !l.description?.toLowerCase().includes(q)) {
+        return false;
+      }
+      return true;
+    });
+  }, [listings, searchText, activeCategory]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#e537df" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
+        <ActivityIndicator size="large" color="#1f2d4d" />
       </View>
     );
   }
-  
 
   return (
     <SafeAreaView style={styles.container}>
-    <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dormify</Text>
-        <TouchableOpacity>
-          <Ionicons name="notifications-outline" size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
       <FlatList
-        data={listings}
+        data={filteredListings}
         keyExtractor={(item) => item.id}
-renderItem={({ item }) => (
-  <ListingCard 
-    item={item} 
-    currentUserId={user?.uid ?? ''} 
-    buyerName={user ? `${user.fname} ${user.lname}` : ''}
-    buyerAvatar={user?.avatarUrl ?? ''}
-
-  />
-)}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        renderItem={({ item }) => <ProductCard item={item} />}
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.brand}>Dormify</Text>
+
+            <View style={styles.searchRow}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={18} color="#9ca3af" />
+                <TextInput
+                  placeholder="Search Marketplace"
+                  placeholderTextColor="#9ca3af"
+                  style={styles.searchInput}
+                  value={searchText}
+                  onChangeText={setSearchText}
+                />
+              </View>
+              <TouchableOpacity style={styles.filterBtn}>
+                <Ionicons name="options-outline" size={20} color="#1f2d4d" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryRow}
+            >
+              {CATEGORIES.map(cat => {
+                const active = cat.key === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={cat.key}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => setActiveCategory(cat.key)}
+                  >
+                    <Ionicons
+                      name={cat.icon}
+                      size={22}
+                      color={active ? '#1f2d4d' : '#6b7280'}
+                    />
+                    <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                      {cat.key}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        }
         refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#e537df"
-          colors={['#e537df']}
-        />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1f2d4d"
+            colors={['#1f2d4d']}
+          />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -300,66 +227,143 @@ renderItem={({ item }) => (
       />
     </SafeAreaView>
   );
-  
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  feed: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  brand: {
+    fontSize: 38,
+    fontWeight: '700',
+    color: '#1f2d4d',
+    fontFamily: 'Georgia',
+    marginTop: 8,
+    marginBottom: 12,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#15c5e8' },
-  feed: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 16 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    paddingVertical: 0,
+  },
+  filterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryRow: {
+    gap: 10,
+    paddingVertical: 4,
+    paddingBottom: 16,
+  },
+  categoryChip: {
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  categoryChipActive: {
+    borderColor: '#1f2d4d',
+    borderWidth: 2,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  categoryLabelActive: {
+    color: '#1f2d4d',
+    fontWeight: '700',
+  },
+  row: {
+    gap: 12,
+    marginBottom: 12,
+  },
   card: {
-    backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  imageContainer: { position: 'relative' },
-  image: { width: '100%', height: 200 },
-  saveBtn: {
-    position: 'absolute', top: 12, right: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20, padding: 6,
+  cardImage: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: '#f3f4f6',
   },
-  priceBadge: {
-    position: 'absolute', bottom: 12, left: 12,
-    backgroundColor: '#73de2d', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+  cardImageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  priceText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  cardBody: { padding: 16, gap: 8 },
-  sellerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 36, height: 36, borderRadius: 18 },
-  sellerName: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  locationText: { fontSize: 11, color: '#9ca3af' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  description: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
-  messageBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start', borderWidth: 1, borderColor: '#f58b28',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4,
+  cardBody: {
+    padding: 12,
+    gap: 6,
   },
-  messageBtnText: { color: '#f1449d', fontSize: 13, fontWeight: '600' },
-  emptyContainer: { alignItems: 'center', marginTop: 100, gap: 12, paddingHorizontal: 40 },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  cardPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2d4d',
+  },
+  locationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#eef2ff',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: 100,
+  },
+  locationPillText: {
+    fontSize: 11,
+    color: '#1f2d4d',
+    fontWeight: '600',
+  },
+  emptyContainer: { alignItems: 'center', marginTop: 80, gap: 12, paddingHorizontal: 40 },
   emptyIllustration: { fontSize: 64, marginBottom: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 26 },
   emptySubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
-dateBadge: {
-  position: 'absolute',
-  top: 12,
-  left: 12,
-  backgroundColor: 'rgba(0,0,0,0.45)',
-  borderRadius: 8,
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-},
-dateText: {
-  color: '#fff',
-  fontSize: 11,
-  fontWeight: '600',
-},
 });
-

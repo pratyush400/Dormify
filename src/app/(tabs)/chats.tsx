@@ -22,15 +22,19 @@ import { db } from '../../services/firebase';
 
 type Chat = {
   id: string;
-  buyerId: string;
-  sellerId: string;
-  listingId: string;
-  listingTitle: string;
-  listingImage: string;
+  participants: string[];
+  participantInfo?: Record<string, { name: string; avatar: string }>;
+  lastListingId?: string;
+  lastListingTitle?: string;
+  lastListingImage?: string;
   lastMessage: string;
   lastMessageTime: any;
-  participants: string[];
   unreadCount: Record<string, number>;
+  // legacy fields (older chats)
+  buyerId?: string;
+  sellerId?: string;
+  listingTitle?: string;
+  listingImage?: string;
   sellerName?: string;
   sellerAvatar?: string;
   buyerName?: string;
@@ -68,13 +72,11 @@ export default function ChatsScreen() {
     );
 
     const unsub = onSnapshot(q, async (snap) => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Chat));
+      const all = snap.docs.map(d => ({ ...(d.data() as any), id: d.id } as Chat));
 
-      // Verify the other participant actually exists in the users collection
       const validityChecks = await Promise.all(
         all.map(async (chat) => {
-          const isSellerMe = chat.sellerId === user.uid;
-          const otherId = isSellerMe ? chat.buyerId : chat.sellerId;
+          const otherId = chat.participants?.find(p => p !== user.uid);
           if (!otherId) return false;
           try {
             const userSnap = await getDoc(doc(db, 'users', otherId));
@@ -87,17 +89,17 @@ export default function ChatsScreen() {
 
       const valid = all.filter((_, i) => validityChecks[i]);
 
-      // Deduplicate by listingId + buyerId
+      // Dedupe by other participant — collapse legacy directional chats into one row
       const seen = new Map<string, Chat>();
       for (const chat of valid) {
-        const key = `${chat.listingId}_${chat.buyerId}`;
-        const existing = seen.get(key);
+        const otherId = chat.participants?.find(p => p !== user.uid) ?? chat.id;
+        const existing = seen.get(otherId);
         if (!existing) {
-          seen.set(key, chat);
+          seen.set(otherId, chat);
         } else {
           const timeA = existing.lastMessageTime?.toDate?.() ?? new Date(0);
           const timeB = chat.lastMessageTime?.toDate?.() ?? new Date(0);
-          if (timeB > timeA) seen.set(key, chat);
+          if (timeB > timeA) seen.set(otherId, chat);
         }
       }
 
@@ -109,7 +111,7 @@ export default function ChatsScreen() {
 
       setChats(data);
       setLoading(false);
-      setRefreshing(false); // ← now guaranteed to fire
+      setRefreshing(false);
     }, (error) => {
       console.log('Chats error:', error);
       setLoading(false);
@@ -171,9 +173,22 @@ export default function ChatsScreen() {
         data={chats}
         keyExtractor={item => item.id}
         renderItem={({ item }) => {
+          const otherId = item.participants?.find(p => p !== user?.uid)
+            ?? (item.sellerId === user?.uid ? item.buyerId : item.sellerId)
+            ?? '';
+          const info = item.participantInfo?.[otherId];
           const isSellerMe = item.sellerId === user?.uid;
-          const otherName = isSellerMe ? (item.buyerName ?? 'Unknown') : (item.sellerName ?? 'Unknown');
-          const otherAvatar = isSellerMe ? (item.buyerAvatar ?? '') : (item.sellerAvatar ?? '');
+          const otherName =
+            info?.name
+            ?? (isSellerMe ? item.buyerName : item.sellerName)
+            ?? 'Unknown';
+          const otherAvatar =
+            info?.avatar
+            ?? (isSellerMe ? item.buyerAvatar : item.sellerAvatar)
+            ?? '';
+          const lastListingTitle = item.lastListingTitle ?? item.listingTitle ?? '';
+          const lastListingImage = item.lastListingImage ?? item.listingImage ?? '';
+          const lastListingId = item.lastListingId ?? '';
           const unread = item.unreadCount?.[user?.uid ?? ''] ?? 0;
 
           return (
@@ -183,21 +198,22 @@ export default function ChatsScreen() {
                 pathname: '/modal/chat',
                 params: {
                   chatId: item.id,
-                  sellerId: item.sellerId,
-                  sellerName: item.sellerName ?? '',
-                  sellerAvatar: item.sellerAvatar ?? '',
-                  listingTitle: item.listingTitle,
-                  listingImage: item.listingImage,
+                  otherId,
+                  otherName,
+                  otherAvatar,
+                  listingId: lastListingId,
+                  listingTitle: lastListingTitle,
+                  listingImage: lastListingImage,
                 }
               })}
-              onLongPress={() => handleDeleteChat(item.id)} // ← long press to delete
+              onLongPress={() => handleDeleteChat(item.id)}
               activeOpacity={0.7}
             >
               <TouchableOpacity
                 onPress={() => router.push({
                   pathname: '/modal/view-profile',
                   params: {
-                    uid: isSellerMe ? item.buyerId : item.sellerId,
+                    uid: otherId,
                     name: otherName,
                     avatar: otherAvatar,
                   }
@@ -223,8 +239,8 @@ export default function ChatsScreen() {
               </View>
 
               <View style={styles.chatRight}>
-                {item.listingImage ? (
-                  <Image source={{ uri: item.listingImage }} style={styles.listingThumb} />
+                {lastListingImage ? (
+                  <Image source={{ uri: lastListingImage }} style={styles.listingThumb} />
                 ) : null}
                 {unread > 0 && (
                   <View style={styles.unreadBadge}>
