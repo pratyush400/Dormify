@@ -140,7 +140,7 @@ keyboardShouldPersistTaps="handled"
 
 <View style={styles.header}>
 
-<Text style={styles.title}>Dormify</Text>
+<Text style={styles.title}>Obo</Text>
 
 <Text style={styles.subtitle}>
 

@@ -7,7 +7,7 @@ export function useBlockUser(currentUserId: string) {
   const blockUser = (blockedId: string, blockedName: string) => {
     Alert.alert(
       `Block ${blockedName}?`,
-      'They will be removed from your feed and chats. Dormify will also be notified.',
+      'They will be removed from your feed and chats. Obo will also be notified.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -21,8 +21,8 @@ export function useBlockUser(currentUserId: string) {
                 blockedName,
                 createdAt: serverTimestamp(),
               });
-              Alert.alert('User Blocked', `${blockedName} has been blocked and reported to Dormify.`);
-            } catch (e) {
+              Alert.alert('User Blocked', `${blockedName} has been blocked and reported to Obo.`);
+            } catch {
               Alert.alert('Error', 'Could not block user. Please try again.');
             }
           },

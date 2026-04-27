@@ -88,9 +88,9 @@ export default function OnboardScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Welcome to Dormify</Text>
+          <Text style={styles.eyebrow}>Welcome to Obo</Text>
           <Text style={styles.title}>Hey, welcome to {schoolName}</Text>
-          <Text style={styles.subtitle}>You’re entering {welcomeLabel} Dormify.</Text>
+          <Text style={styles.subtitle}>You’re entering {welcomeLabel} Obo.</Text>
         </View>
 
         <View style={styles.section}>

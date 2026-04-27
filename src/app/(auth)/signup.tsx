@@ -135,7 +135,7 @@ Create Account
 
 <Text style={styles.subtitle}>
 
-Use your school email to join Dormify
+Use your school email to join Obo
 
 </Text>
 

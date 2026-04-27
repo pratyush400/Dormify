@@ -74,7 +74,7 @@ export default function VerifyEmailScreen() {
             <Text style={styles.emailText}>{email}</Text>
           </Text>
           <Text style={styles.bodyText}>
-            Tap the link so we know that email is actually yours. Once that’s done, come back and continue.
+            If you can't find the email in your inbox, try checking your spam folder. Tap the link so we know that email is actually yours. Once that’s done, come back and continue.
           </Text>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleContinue} disabled={isChecking}>

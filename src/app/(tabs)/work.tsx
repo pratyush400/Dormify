@@ -15,7 +15,7 @@ export default function Working() {
       </View>
 <View style={styles.emptyContainer}>
             <Text style={styles.emptyIllustration}>🏠</Text>
-            <Text style={styles.emptyTitle}>Your school's Dormify{'\n'}seems to be empty...</Text>
+            <Text style={styles.emptyTitle}>Your school&apos;s Obo{'\n'}seems to be empty...</Text>
             <Text style={styles.emptySubtext}>Be the first to post a listing{'\n'}and get things moving!</Text>
           </View>
     </View>

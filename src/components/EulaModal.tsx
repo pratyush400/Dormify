@@ -24,12 +24,12 @@ export default function EulaModal({ visible, onAccept}: Props) {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
           <Text style={styles.body}>
-            By using Dormify, you agree to these Terms of Use. If you do not agree, you may not use the app.
+            By using Obo, you agree to these Terms of Use. If you do not agree, you may not use the app.
           </Text>
 
           <Text style={styles.sectionTitle}>2. User-Generated Content</Text>
           <Text style={styles.body}>
-            Dormify allows users to post listings and communicate with others. You are solely responsible for
+            Obo allows users to post listings and communicate with others. You are solely responsible for
             content you post. We have zero tolerance for objectionable content or abusive behavior.
           </Text>
 
@@ -43,14 +43,14 @@ export default function EulaModal({ visible, onAccept}: Props) {
           <Text style={styles.sectionTitle}>4. Reporting & Moderation</Text>
           <Text style={styles.body}>
             Users can report objectionable listings and block abusive users at any time. All reports are
-            reviewed by Dormify within 24 hours. Offending content will be removed and offending users
+            reviewed by Obo within 24 hours. Offending content will be removed and offending users
             will be ejected from the platform.
           </Text>
 
           <Text style={styles.sectionTitle}>5. Blocking Users</Text>
           <Text style={styles.body}>
             You may block any user at any time. Blocked users will not appear in your feed or chats.
-            Blocking a user also notifies Dormify of potential abuse for review.
+            Blocking a user also notifies Obo of potential abuse for review.
           </Text>
 
           <Text style={styles.sectionTitle}>6. Privacy</Text>

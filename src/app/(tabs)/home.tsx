@@ -197,7 +197,7 @@ const displayedListings = showSaved
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>Dormify</Text>
+            <Text style={styles.brand}>Obo</Text>
 
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
@@ -254,7 +254,7 @@ const displayedListings = showSaved
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIllustration}>{showSaved ? '❤️' : '🏠'}</Text>
             <Text style={styles.emptyTitle}>
-        {showSaved ? 'No saved listings yet' : "Your school's Dormify\nseems to be empty..."}
+        {showSaved ? 'No saved listings yet' : "Your school's Obo\nseems to be empty..."}
       </Text>
             <Text style={styles.emptySubtext}>Be the first to post a listing{'\n'}and get things moving!</Text>
           </View>
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 38,
     fontWeight: '700',
-    color: '#f61cc7',
+    color: '#e80000',
     fontFamily: 'Georgia',
     marginTop: 8,
     marginBottom: 12,

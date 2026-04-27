@@ -74,7 +74,7 @@ async function getCollegePushTokens(college: string, excludeUid: string) {
 
 const LISTING_NOTIFICATION_TEMPLATES = [
   (title: string, priceLabel: string, hallLabel: string) => ({
-    title: 'Fresh drop on Dormify',
+    title: 'Fresh drop on Obo',
     body: `${title} just landed${priceLabel}${hallLabel}. Claim it now!`,
   }),
   (title: string, priceLabel: string, hallLabel: string) => ({
@@ -83,7 +83,7 @@ const LISTING_NOTIFICATION_TEMPLATES = [
   }),
   (title: string, priceLabel: string, hallLabel: string) => ({
     title: 'We know how stressful finals can be, this might blow off some steam!',
-    body: `${title}${priceLabel} is live${hallLabel}. Open Dormify before it disappears.`,
+    body: `${title}${priceLabel} is live${hallLabel}. Open Obo before it disappears.`,
   }),
 ];
 
@@ -98,7 +98,7 @@ const EVENT_NOTIFICATION_TEMPLATES = [
   }),
   (title: string, locationLabel: string, timeLabel: string) => ({
     title: 'New event just dropped',
-    body: `${title}${timeLabel}${locationLabel}. Catch the details in Dormify.`,
+    body: `${title}${timeLabel}${locationLabel}. Catch the details in Obo.`,
   }),
 ];
 

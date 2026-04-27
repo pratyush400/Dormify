@@ -241,7 +241,7 @@ export default function CampusScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>Dormify</Text>
+            <Text style={styles.brand}>Obo</Text>
 
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 38,
     fontWeight: '700',
-    color: '#f61cc7',
+    color: '#e80000',
     fontFamily: 'Georgia',
     marginTop: 8,
     marginBottom: 12,
