@@ -6,7 +6,7 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
 import {
   ActivityIndicator, Alert, Image,
-  SafeAreaView, ScrollView, StyleSheet, Text,
+  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
@@ -17,6 +17,93 @@ const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell 
 const CONDITIONS = ['New', 'Used'];
 
 type PostType = 'listing' | 'event';
+
+function parseFlexibleEventTime(input: string): { hours: number; minutes: number } | null {
+  const raw = input.trim().toLowerCase();
+  if (!raw) return null;
+
+  const compact = raw.replace(/\s+/g, '');
+  const meridiemMatch = compact.match(/(am|pm)$/);
+  const meridiem = meridiemMatch?.[1] ?? null;
+  const timePart = compact.replace(/(am|pm)$/, '');
+
+  let hours: number;
+  let minutes = 0;
+
+  if (timePart.includes(':')) {
+    const [hourPart, minutePart = '0'] = timePart.split(':');
+    hours = Number(hourPart);
+    minutes = Number(minutePart);
+  } else if (/^\d{3,4}$/.test(timePart)) {
+    const hourPart = timePart.slice(0, timePart.length - 2);
+    const minutePart = timePart.slice(-2);
+    hours = Number(hourPart);
+    minutes = Number(minutePart);
+  } else if (/^\d{1,2}$/.test(timePart)) {
+    hours = Number(timePart);
+  } else {
+    return null;
+  }
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return null;
+    if (meridiem === 'pm' && hours !== 12) hours += 12;
+    if (meridiem === 'am' && hours === 12) hours = 0;
+  } else if (hours > 23) {
+    return null;
+  }
+
+  return { hours, minutes };
+}
+
+function parseFlexibleEventDate(input: string): { month: number; day: number; year: number } | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const parts = trimmed.split(/[\/\-.\s]+/).filter(Boolean);
+  if (parts.length < 2 || parts.length > 3) return null;
+
+  const month = Number(parts[0]);
+  const day = Number(parts[1]);
+  const now = new Date();
+  let year = parts[2] ? Number(parts[2]) : now.getFullYear();
+
+  if (!Number.isFinite(month) || !Number.isFinite(day) || !Number.isFinite(year)) return null;
+  if (year < 100) year += 2000;
+
+  const candidate = new Date(year, month - 1, day);
+  if (
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== month - 1 ||
+    candidate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  if (parts.length === 2 && candidate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+    candidate.setFullYear(year + 1);
+  }
+
+  return {
+    month: candidate.getMonth() + 1,
+    day: candidate.getDate(),
+    year: candidate.getFullYear(),
+  };
+}
+
+function formatTimeHint(input: string): string | null {
+  const parsed = parseFlexibleEventTime(input);
+  if (!parsed) return null;
+
+  return new Date(2000, 0, 1, parsed.hours, parsed.minutes).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 export default function SellScreen() {
   const { user } = useUser();
@@ -38,42 +125,36 @@ const [eventTimeStr, setEventTimeStr] = useState(''); // "HH:MM AM/PM"
   const [eventLocation, setEventLocation] = useState('');
 
   const parseEventDate = (dateStr: string, timeStr: string): Date | null => {
-  try {
-    const [month, day, year] = dateStr.split('/');
-    // Convert "7:00 PM" to 24h
-    const [time, meridiem] = timeStr.trim().split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (meridiem?.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-    if (meridiem?.toUpperCase() === 'AM' && hours === 12) hours = 0;
-    const d = new Date(Number(year), Number(month) - 1, Number(day), hours, minutes || 0);
-    return isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
-};
+    const parsedDate = parseFlexibleEventDate(dateStr);
+    const parsedTime = parseFlexibleEventTime(timeStr);
+    if (!parsedDate || !parsedTime) return null;
 
+    const combined = new Date(
+      parsedDate.year,
+      parsedDate.month - 1,
+      parsedDate.day,
+      parsedTime.hours,
+      parsedTime.minutes
+    );
 
-  const isValidDate = (str: string) => {
-  const parts = str.split('/');
-  if (parts.length !== 3) return false;
-  const d = new Date(`${parts[2]}-${parts[0]}-${parts[1]}`);
-  return !isNaN(d.getTime()) && d > new Date();
-};
+    return combined > new Date() ? combined : null;
+  };
 
-  const isListingValid = photos.length > 0 && title && price && category && hall && condition;
-const isEventValid = !!(
-  title &&
-  eventLocation &&
-  eventDateStr.length === 10 &&
-  eventTimeStr.length >= 4 &&
-  parseEventDate(eventDateStr, eventTimeStr) !== null
-);
+  const isListingValid = !!(title.trim() && price.trim());
+  const isEventValid = !!(
+    title.trim() &&
+    eventDateStr.trim() &&
+    eventTimeStr.trim() &&
+    parseEventDate(eventDateStr, eventTimeStr) !== null
+  );
   const isFormValid = postType === 'listing' ? isListingValid : isEventValid;
+  const parsedEventPreview = parseEventDate(eventDateStr, eventTimeStr);
+  const normalizedTimeHint = formatTimeHint(eventTimeStr);
 
   const resetForm = () => {
     setTitle(''); setDescription('');
     setPhotos([]); setPrice(''); setCategory(''); setHall(''); setCondition('');
-    setEventImage(null); setEventLocation('');
+    setEventImage(null); setEventDateStr(''); setEventTimeStr(''); setEventLocation('');
   };
 
   const pickFromGallery = async (forEvent = false) => {
@@ -133,8 +214,9 @@ const isEventValid = !!(
         await addDoc(collection(db, 'listings'), {
           title, description,
           price: parseFloat(price),
-          category, hall,
-          condition: condition.toLowerCase(),
+          category: category || 'Other',
+          hall: hall || 'Campus',
+          condition: (condition || 'Used').toLowerCase(),
           photos: uploadedUrls,
           sold: false,
           createdAt: serverTimestamp(),
@@ -158,7 +240,7 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
         await addDoc(collection(db, 'events'), {
           title, description,
           eventDate: combinedDate,
-          eventLocation,
+          eventLocation: eventLocation.trim() || 'Campus',
           eventImage: eventImageUrl,
           authorId: authUser.uid,
           authorName: `${user?.fname ?? ''} ${user?.lname ?? ''}`.trim() || 'Anonymous',
@@ -204,11 +286,21 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={styles.keyboardArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      >
+      <ScrollView
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
 
         {postType === 'listing' && (
           <>
-            <Text style={styles.label}>Photos <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>Photos</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosRow}>
               <TouchableOpacity style={styles.photoAdd} onPress={() => takePhoto(false)}>
                 <Ionicons name="camera-outline" size={24} color="#000000" />
@@ -243,7 +335,7 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
               />
             </View>
 
-            <Text style={styles.label}>Condition <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>Condition</Text>
             <View style={styles.chipRow}>
               {CONDITIONS.map(c => (
                 <TouchableOpacity
@@ -256,7 +348,7 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
               ))}
             </View>
 
-            <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>Category</Text>
             <View style={styles.chipRow}>
               {CATEGORIES.map(c => (
                 <TouchableOpacity
@@ -269,7 +361,7 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
               ))}
             </View>
 
-            <Text style={styles.label}>Hall / Location <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>Hall / Location</Text>
             <View style={styles.chipRow}>
               {HALLS.map(h => (
                 <TouchableOpacity
@@ -312,32 +404,43 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
             <Text style={styles.label}>Date <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="MM/DD/YYYY"
+                  placeholder="e.g. 5/2 or 05/02/2026"
                   placeholderTextColor="#9ca3af"
                   value={eventDateStr}
                   onChangeText={setEventDateStr}
                   keyboardType="numbers-and-punctuation"
-                  maxLength={10}
+                  maxLength={14}
                 />
 
                 <Text style={styles.label}>Time <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. 7:00 PM"
+                  placeholder="e.g. 7, 7pm, 7:30, 19:30"
                   placeholderTextColor="#9ca3af"
                   value={eventTimeStr}
                   onChangeText={setEventTimeStr}
-                  maxLength={10}
+                  autoCapitalize="characters"
+                  maxLength={12}
                 />
+                <Text style={styles.hint}>
+                  {normalizedTimeHint
+                    ? `We'll post this as ${normalizedTimeHint}`
+                    : 'Works with 7, 7pm, 730, 7:30, or 19:30'}
+                </Text>
 
-            <Text style={styles.label}>Location <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>Location</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Fowler, Room 102"
+              placeholder="e.g. Fowler, Room 102 or leave blank"
               placeholderTextColor="#9ca3af"
               value={eventLocation}
               onChangeText={setEventLocation}
             />
+            {parsedEventPreview && (
+              <Text style={styles.hint}>
+                Posting for {formatEventDate(parsedEventPreview)} at {formatEventTime(parsedEventPreview)}
+              </Text>
+            )}
           </>
         )}
         <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
@@ -386,12 +489,14 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
         </TouchableOpacity>
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
+  keyboardArea: { flex: 1 },
   header: {
     paddingHorizontal: 20, paddingVertical: 14,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',

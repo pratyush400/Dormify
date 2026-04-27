@@ -2,18 +2,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-    arrayRemove, arrayUnion, collection,
-    deleteDoc,
-    doc,
-    onSnapshot, orderBy, query, updateDoc
+  arrayRemove, arrayUnion, collection,
+  deleteDoc,
+  doc,
+  onSnapshot, orderBy, query, updateDoc
 } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList, Image,
-    RefreshControl, SafeAreaView, StyleSheet,
-    Text, TouchableOpacity, View
+  ActivityIndicator,
+  Alert,
+  FlatList, Image,
+  RefreshControl, SafeAreaView, ScrollView, StyleSheet,
+  Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
@@ -33,7 +33,13 @@ type Event = {
   createdAt: any;
 };
 
+const EVENT_FILTERS = [
+  { key: 'Upcoming', icon: 'calendar-outline' as const },
+  { key: 'All Events', icon: 'apps-outline' as const },
+];
+
 function EventCard({ item, currentUserId }: { item: Event; currentUserId: string }) {
+  const router = useRouter();
   const isInterested = item.interested?.includes(currentUserId);
 
     const handleDelete = () => {
@@ -79,15 +85,26 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
   };
 
   return (
-    <View style={[styles.card, isPast() && styles.cardPast]}>
+    <TouchableOpacity
+      style={[styles.card, isPast() && styles.cardPast]}
+      activeOpacity={0.92}
+      onPress={() => router.push(`/event/${item.id}`)}
+    >
       {item.eventImage ? (
         <Image source={{ uri: item.eventImage }} style={styles.eventImage} />
       ) : (
         <View style={styles.eventImagePlaceholder}>
           <Text style={styles.eventImagePlaceholderText}>📅</Text>
         </View>
-      )}{currentUserId === item.authorId && (
-            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+      )}
+      {currentUserId === item.authorId && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleDelete();
+              }}
+            >
               <Ionicons name="trash-outline" size={14} color="#fff" />
             </TouchableOpacity>
       )}
@@ -133,12 +150,15 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
             )}
             <TouchableOpacity
               style={[styles.interestedBtn, isInterested && styles.interestedBtnActive]}
-              onPress={handleToggleInterested}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleToggleInterested();
+              }}
             >
               <Ionicons
                 name={isInterested ? 'star' : 'star-outline'}
                 size={14}
-                color={isInterested ? '#fff' : '#ef63f1'}
+                color={isInterested ? '#fff' : '#1f2d4d'}
               />
               <Text style={[styles.interestedBtnText, isInterested && styles.interestedBtnTextActive]}>
                 {item.interested?.length ?? 0} Interested
@@ -147,18 +167,18 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function CampusScreen() {
   const { user } = useUser();
-  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [showUpcoming, setShowUpcoming] = useState(true);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
   if (!user) return;
@@ -186,34 +206,31 @@ export default function CampusScreen() {
   };
 
   const now = new Date();
-  const displayed = showUpcoming
-    ? events.filter(e => {
-        const d = e.eventDate?.toDate ? e.eventDate.toDate() : new Date(e.eventDate);
-        return d >= now;
-      })
-    : events;
+  const displayed = events.filter((event) => {
+    const eventDate = event.eventDate?.toDate ? event.eventDate.toDate() : new Date(event.eventDate);
+    if (showUpcoming && eventDate < now) return false;
+
+    const queryText = searchText.trim().toLowerCase();
+    if (!queryText) return true;
+
+    return (
+      event.title?.toLowerCase().includes(queryText) ||
+      event.description?.toLowerCase().includes(queryText) ||
+      event.eventLocation?.toLowerCase().includes(queryText) ||
+      event.authorName?.toLowerCase().includes(queryText)
+    );
+  });
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#ef63f1" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1f2d4d" />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Campus</Text>
-        <TouchableOpacity
-          style={[styles.filterBtn, showUpcoming && styles.filterBtnActive]}
-          onPress={() => setShowUpcoming(s => !s)}
-        >
-          <Text style={[styles.filterBtnText, showUpcoming && styles.filterBtnTextActive]}>
-            {showUpcoming ? 'Upcoming' : 'All Events'}
-          </Text>
-        </TouchableOpacity>
-      </View>
       <FlatList
         data={displayed}
         keyExtractor={item => item.id}
@@ -222,14 +239,73 @@ export default function CampusScreen() {
         )}
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.brand}>Dormify</Text>
+
+            <View style={styles.searchRow}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={18} color="#9ca3af" />
+                <TextInput
+                  placeholder="Search Campus"
+                  placeholderTextColor="#9ca3af"
+                  style={styles.searchInput}
+                  value={searchText}
+                  onChangeText={setSearchText}
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.filterBtn}
+                onPress={() => setShowUpcoming((current) => !current)}
+              >
+                <Ionicons name={showUpcoming ? 'calendar' : 'options-outline'} size={20} color="#1f2d4d" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryRow}
+            >
+              {EVENT_FILTERS.map((filter) => {
+                const active = showUpcoming
+                  ? filter.key === 'Upcoming'
+                  : filter.key === 'All Events';
+
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => setShowUpcoming(filter.key === 'Upcoming')}
+                  >
+                    <Ionicons
+                      name={filter.icon}
+                      size={22}
+                      color={active ? '#1f2d4d' : '#6b7280'}
+                    />
+                    <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                      {filter.key}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" colors={['#6366f1']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1f2d4d" colors={['#1f2d4d']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🎉</Text>
-            <Text style={styles.emptyTitle}>No upcoming events</Text>
-            <Text style={styles.emptySubtext}>Be the first to post a campus event!</Text>
+            <Text style={styles.emptyIllustration}>🎉</Text>
+            <Text style={styles.emptyTitle}>
+              {showUpcoming ? 'No upcoming events yet' : 'No campus events found'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {showUpcoming
+                ? 'Be the first to post a campus event and get people out of their rooms.'
+                : 'Try a different search or switch back to upcoming events.'}
+            </Text>
           </View>
         }
       />
@@ -239,39 +315,104 @@ export default function CampusScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' },
+  feed: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  brand: {
+    fontSize: 38,
+    fontWeight: '700',
+    color: '#f61cc7',
+    fontFamily: 'Georgia',
+    marginTop: 8,
+    marginBottom: 12,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    paddingVertical: 0,
+  },
   filterBtn: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#6366f1',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterBtnActive: { backgroundColor: '#6366f1' },
-  filterBtnText: { fontSize: 13, fontWeight: '600', color: '#6366f1' },
-  filterBtnTextActive: { color: '#fff' },
-  feed: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 16 },
+  categoryRow: {
+    gap: 10,
+    paddingVertical: 4,
+    paddingBottom: 16,
+  },
+  categoryChip: {
+    width: 92,
+    height: 76,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  categoryChipActive: {
+    borderColor: '#1f2d4d',
+    borderWidth: 2,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  categoryLabelActive: {
+    color: '#1f2d4d',
+    fontWeight: '700',
+  },
   card: {
-    backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 12,
   },
   cardPast: { opacity: 0.6 },
-  eventImage: { width: '100%', height: 180 },
+  eventImage: { width: '100%', height: 180, backgroundColor: '#f3f4f6' },
   eventImagePlaceholder: {
-    width: '100%', height: 100,
+    width: '100%', height: 180,
     backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center',
   },
   eventImagePlaceholderText: { fontSize: 40 },
   pastBadge: {
     position: 'absolute', top: 12, left: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8,
+    backgroundColor: 'rgba(31,45,77,0.82)', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 4,
   },
   pastBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  cardBody: { padding: 16, gap: 8 },
+  cardBody: { padding: 12, gap: 8 },
   title: { fontSize: 17, fontWeight: '700', color: '#111827' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: { fontSize: 13, color: '#6b7280' },
@@ -292,20 +433,20 @@ const styles = StyleSheet.create({
   },
   interestedBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1.5, borderColor: '#6366f1', borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#1f2d4d', borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  interestedBtnActive: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
-  interestedBtnText: { fontSize: 12, fontWeight: '600', color: '#6366f1' },
+  interestedBtnActive: { backgroundColor: '#1f2d4d', borderColor: '#1f2d4d' },
+  interestedBtnText: { fontSize: 12, fontWeight: '600', color: '#1f2d4d' },
   interestedBtnTextActive: { color: '#fff' },
-  emptyContainer: { alignItems: 'center', marginTop: 100, gap: 12 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151' },
-  emptySubtext: { fontSize: 14, color: '#9ca3af' },
+  emptyContainer: { alignItems: 'center', marginTop: 80, gap: 12, paddingHorizontal: 40 },
+  emptyIllustration: { fontSize: 64, marginBottom: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 26 },
+  emptySubtext: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
 
-   deleteBtn: {
-  position: 'absolute', top: 6, right: 6,
-  backgroundColor: 'rgba(239,68,68,0.85)',
-  borderRadius: 8, padding: 5,
-},
+  deleteBtn: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: 'rgba(239,68,68,0.85)',
+    borderRadius: 10, padding: 6,
+  },
 });

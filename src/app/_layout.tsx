@@ -53,8 +53,8 @@ const handleAcceptEula = async () => {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" />
         <Stack.Screen name="listing" />
+        <Stack.Screen name="event" />
       </Stack>
     </>
   );
 }
-

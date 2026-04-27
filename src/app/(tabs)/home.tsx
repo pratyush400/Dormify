@@ -3,8 +3,13 @@ import { useBlockUser } from '@/hooks/useBlockUser';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-  collection, onSnapshot, orderBy,
-  query, where
+  collection,
+  deleteDoc, doc,
+  onSnapshot, orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where
 } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -265,7 +270,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 38,
     fontWeight: '700',
-    color: '#1f2d4d',
+    color: '#f61cc7',
     fontFamily: 'Georgia',
     marginTop: 8,
     marginBottom: 12,
