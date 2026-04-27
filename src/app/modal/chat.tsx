@@ -8,10 +8,9 @@ import {
   increment,
   onSnapshot, orderBy,
   query, serverTimestamp,
-  setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -27,63 +26,57 @@ import {
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
 
+type ListingContext = {
+  id: string;
+  title: string;
+  image: string;
+};
+
 type Message = {
   id: string;
   text: string;
   senderId: string;
   createdAt: any;
+  listing?: ListingContext;
 };
-
 
 export default function ChatScreen() {
   const router = useRouter();
   const { user } = useUser();
-  const { chatId, sellerId, sellerName, sellerAvatar, listingTitle, listingImage } =
-    useLocalSearchParams<{
-      chatId: string;
-      sellerId: string;
-      sellerName: string;
-      sellerAvatar: string;
-      listingTitle: string;
-      listingImage: string;
-    }>();
+  const {
+    chatId,
+    otherId,
+    otherName,
+    otherAvatar,
+    listingId,
+    listingTitle,
+    listingImage,
+  } = useLocalSearchParams<{
+    chatId: string;
+    otherId: string;
+    otherName: string;
+    otherAvatar: string;
+    listingId?: string;
+    listingTitle?: string;
+    listingImage?: string;
+  }>();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
   const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
-const [input, setInput] = useState('');
-const [isOnline, setIsOnline] = useState(false);
-const [lastSeen, setLastSeen] = useState<any>(null);
-  const getOrCreateChat = async () => {
-  if (!user || !sellerId) return null;
-  
-  if (chatId && chatId !== 'new') return chatId;
+  const [input, setInput] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [lastSeen, setLastSeen] = useState<any>(null);
+  const [pendingListing, setPendingListing] = useState<ListingContext | null>(
+    listingId ? { id: listingId, title: listingTitle ?? '', image: listingImage ?? '' } : null
+  );
 
-  const newChatRef = doc(collection(db, 'chats'));
-  await setDoc(newChatRef, {
-    buyerId: user.uid,
-    sellerId,
-    buyerName: `${user.fname} ${user.lname}`,
-    buyerAvatar: user.avatarUrl,
-    sellerName,
-    sellerAvatar,
-    listingTitle,
-    listingImage,
-    participants: [user.uid, sellerId],
-    lastMessage: '',
-    lastMessageTime: serverTimestamp(),
-    unreadCount: { [user.uid]: 0, [sellerId]: 0 },
-  });
-  return newChatRef.id;
-};
   const sendPushNotification = async (receiverId: string, senderName: string, message: string) => {
     try {
-      // get receiver's push token
       const userDoc = await getDoc(doc(db, 'users', receiverId));
       const token = userDoc.data()?.expoPushToken;
       if (!token) return;
-
       await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,14 +93,14 @@ const [lastSeen, setLastSeen] = useState<any>(null);
     }
   };
 
-useEffect(() => {
+  useEffect(() => {
     if (!chatId) return;
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
       orderBy('createdAt', 'asc')
     );
     const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
+      setMessages(snap.docs.map(d => ({ ...(d.data() as any), id: d.id } as Message)));
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100);
     });
@@ -120,56 +113,70 @@ useEffect(() => {
 
     return () => unsub();
   }, [chatId, user]);
-  
-useEffect(() => {
-  if (!sellerId) return;
-  const unsub = onSnapshot(doc(db, 'users', sellerId), (snap) => {
-    if (snap.exists()) {
-      setIsOnline(snap.data().isOnline ?? false);
-      setLastSeen(snap.data().lastSeen ?? null);
-    }
-  });
-  return () => unsub();
-}, [sellerId]);
 
-const getLastSeen = () => {
-  if (isOnline) return 'Online';
-  if (!lastSeen) return 'Offline';
-  const date = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
-  const diff = (Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-};
+  useEffect(() => {
+    if (!otherId) return;
+    const unsub = onSnapshot(doc(db, 'users', otherId), (snap) => {
+      if (snap.exists()) {
+        setIsOnline(snap.data().isOnline ?? false);
+        setLastSeen(snap.data().lastSeen ?? null);
+      }
+    });
+    return () => unsub();
+  }, [otherId]);
 
-  
+  const getLastSeen = () => {
+    if (isOnline) return 'Online';
+    if (!lastSeen) return 'Offline';
+    const date = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+    const diff = (Date.now() - date.getTime()) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !user || !chatId) return;
     const text = input.trim();
     setInput('');
 
-    const otherUserId = user.uid === sellerId ? '' : sellerId ?? '';
+    const otherUserId = otherId ?? '';
 
-    await addDoc(collection(db, 'chats', chatId, 'messages'), {
+    const messageDoc: any = {
       text,
       senderId: user.uid,
       createdAt: serverTimestamp(),
-    });
+    };
+    if (pendingListing && pendingListing.id) {
+      messageDoc.listing = {
+        id: pendingListing.id,
+        title: pendingListing.title || '',
+        image: pendingListing.image || '',
+      };
+    }
 
-    await updateDoc(doc(db, 'chats', chatId), {
+    await addDoc(collection(db, 'chats', chatId, 'messages'), messageDoc);
+
+    const chatUpdate: any = {
       lastMessage: text,
       lastMessageTime: serverTimestamp(),
-      [`unreadCount.${otherUserId}`]: increment(1),
-    });
+    };
+    if (otherUserId) chatUpdate[`unreadCount.${otherUserId}`] = increment(1);
+    if (pendingListing?.id) {
+      chatUpdate.lastListingId = pendingListing.id;
+      chatUpdate.lastListingTitle = pendingListing.title || '';
+      chatUpdate.lastListingImage = pendingListing.image || '';
+    }
+    await updateDoc(doc(db, 'chats', chatId), chatUpdate);
 
-      if (otherUserId) {
-    await sendPushNotification(
-      otherUserId,
-      `${user.fname} ${user.lname}`,
-      text
-    );
-  }
+    if (otherUserId) {
+      await sendPushNotification(
+        otherUserId,
+        `${user.fname} ${user.lname}`,
+        text
+      );
+    }
 
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };
@@ -180,6 +187,14 @@ const getLastSeen = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Decide where to show the pending-listing banner above the composer:
+  // only if the most recent message doesn't already reference it.
+  const showPendingBanner = useMemo(() => {
+    if (!pendingListing) return false;
+    const lastWithListing = [...messages].reverse().find(m => m.listing?.id);
+    return lastWithListing?.listing?.id !== pendingListing.id;
+  }, [pendingListing, messages]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -187,19 +202,16 @@ const getLastSeen = () => {
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Image
-          source={sellerAvatar ? { uri: sellerAvatar } : DEFAULT_AVATAR}
+          source={otherAvatar ? { uri: otherAvatar } : DEFAULT_AVATAR}
           style={styles.avatar}
         />
         <View style={styles.headerInfo}>
-  <Text style={styles.headerName}>{sellerName}</Text>
-  <View style={styles.onlineRow}>
-    <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#9ca3af' }]} />
-    <Text style={styles.headerSub}>{getLastSeen()}</Text>
-  </View>
-</View>
-        {listingImage ? (
-          <Image source={{ uri: listingImage }} style={styles.listingThumb} />
-        ) : null}
+          <Text style={styles.headerName}>{otherName}</Text>
+          <View style={styles.onlineRow}>
+            <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#9ca3af' }]} />
+            <Text style={styles.headerSub}>{getLastSeen()}</Text>
+          </View>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -224,21 +236,65 @@ const getLastSeen = () => {
                 <Text style={styles.emptySubtext}>Start the conversation!</Text>
               </View>
             }
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               const mine = item.senderId === user?.uid;
+              const prev = index > 0 ? messages[index - 1] : undefined;
+              const showListingCard =
+                !!item.listing?.id && item.listing.id !== prev?.listing?.id;
               return (
-                <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                    {item.text}
-                  </Text>
-                  <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
-                    {formatTime(item.createdAt)}
-                  </Text>
+                <View>
+                  {showListingCard && item.listing ? (
+                    <TouchableOpacity
+                      style={styles.listingPreview}
+                      onPress={() => router.push(`/listing/${item.listing!.id}`)}
+                      activeOpacity={0.85}
+                    >
+                      {item.listing.image ? (
+                        <Image source={{ uri: item.listing.image }} style={styles.listingPreviewImage} />
+                      ) : (
+                        <View style={[styles.listingPreviewImage, styles.listingPreviewFallback]}>
+                          <Ionicons name="image-outline" size={18} color="#9ca3af" />
+                        </View>
+                      )}
+                      <View style={styles.listingPreviewInfo}>
+                        <Text style={styles.listingPreviewLabel}>RE: LISTING</Text>
+                        <Text style={styles.listingPreviewTitle} numberOfLines={1}>
+                          {item.listing.title || 'Listing'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+                    </TouchableOpacity>
+                  ) : null}
+                  <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                    <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
+                      {item.text}
+                    </Text>
+                    <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
+                      {formatTime(item.createdAt)}
+                    </Text>
+                  </View>
                 </View>
               );
             }}
           />
         )}
+
+        {showPendingBanner && pendingListing ? (
+          <View style={styles.pendingBanner}>
+            {pendingListing.image ? (
+              <Image source={{ uri: pendingListing.image }} style={styles.pendingThumb} />
+            ) : (
+              <View style={[styles.pendingThumb, { backgroundColor: '#e5e7eb' }]} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingLabel}>Replying about</Text>
+              <Text style={styles.pendingTitle} numberOfLines={1}>{pendingListing.title}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setPendingListing(null)}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.inputRow}>
           <TextInput
@@ -274,7 +330,6 @@ const styles = StyleSheet.create({
   avatar: { width: 38, height: 38, borderRadius: 19 },
   headerInfo: { flex: 1 },
   headerName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  listingThumb: { width: 40, height: 40, borderRadius: 10 },
   messagesList: { padding: 16, gap: 8, flexGrow: 1 },
   bubble: {
     maxWidth: '75%', borderRadius: 18,
@@ -292,17 +347,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#f3f4f6',
   },
   listingPreview: {
-  flexDirection: 'row', alignItems: 'center', gap: 10,
-  backgroundColor: '#f3f4f6', borderRadius: 14,
-  padding: 12, marginBottom: 16,
-  borderWidth: 1, borderColor: '#e5e7eb',
-},
-listingPreviewImage: {
-  width: 50, height: 50, borderRadius: 10,
-},
-listingPreviewInfo: { flex: 1 },
-listingPreviewLabel: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
-listingPreviewTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#f3f4f6', borderRadius: 14,
+    padding: 10, marginTop: 12, marginBottom: 4,
+    borderWidth: 1, borderColor: '#e5e7eb',
+  },
+  listingPreviewImage: { width: 44, height: 44, borderRadius: 10 },
+  listingPreviewFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#e5e7eb' },
+  listingPreviewInfo: { flex: 1 },
+  listingPreviewLabel: { fontSize: 10, color: '#9ca3af', fontWeight: '700', letterSpacing: 0.5 },
+  listingPreviewTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  pendingBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: '#eef2ff', borderTopWidth: 1, borderTopColor: '#e5e7eb',
+  },
+  pendingThumb: { width: 36, height: 36, borderRadius: 8 },
+  pendingLabel: { fontSize: 11, color: '#6b7280', fontWeight: '600' },
+  pendingTitle: { fontSize: 13, fontWeight: '700', color: '#1f2d4d' },
   input: {
     flex: 1, backgroundColor: '#f3f4f6', borderRadius: 22,
     paddingHorizontal: 16, paddingVertical: 10,
@@ -313,8 +375,8 @@ listingPreviewTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
     backgroundColor: '#1fbded', justifyContent: 'center', alignItems: 'center',
   },
   onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-onlineDot: { width: 7, height: 7, borderRadius: 4 },
-headerSub: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  onlineDot: { width: 7, height: 7, borderRadius: 4 },
+  headerSub: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
   sendBtnDisabled: { backgroundColor: '#c7d2fe' },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#374151' },

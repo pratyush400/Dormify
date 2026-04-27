@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { chatIdFor } from '../../services/chat';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert,
@@ -90,34 +91,37 @@ const handleMessageSeller = async () => {
     console.log('listing.sellerId:', listing?.sellerId);
     console.log('listing.id:', id);
 
-const chatId = `${user.uid}_${listing?.sellerId}`;
-    console.log('chatId:', chatId);
+const sellerId = listing?.sellerId ?? '';
+    const chatId = chatIdFor(user.uid, sellerId);
 
     const chatRef = doc(db, 'chats', chatId);
-    console.log('chatRef created');
-
     const chatSnap = await getDoc(chatRef);
-    console.log('chatSnap exists:', chatSnap.exists());
+
+    const participantInfo = {
+      [user.uid]: {
+        name: `${user.fname} ${user.lname}`,
+        avatar: user.avatarUrl || '',
+      },
+      [sellerId]: {
+        name: listing?.sellerName ?? '',
+        avatar: listing?.sellerAvatar ?? '',
+      },
+    };
 
     if (!chatSnap.exists()) {
-      console.log('CREATING CHAT WITH ID:', chatId);
       await setDoc(chatRef, {
-        buyerId: user.uid,
-        buyerName: `${user.fname} ${user.lname}`,
-        buyerAvatar: user.avatarUrl || '',
-        sellerId: listing?.sellerId,
-        participants: [user.uid, listing?.sellerId],
-        listingId: id,
-        listingTitle: listing?.title,
-        listingImage: listing?.photos?.[0] || '',
+        participants: [user.uid, sellerId],
+        participantInfo,
+        lastListingId: id,
+        lastListingTitle: listing?.title ?? '',
+        lastListingImage: listing?.photos?.[0] || '',
         lastMessage: '',
         lastMessageTime: serverTimestamp(),
-        unreadCount: { [user.uid]: 0, [listing?.sellerId ?? '']: 0 },
-        sellerName: listing?.sellerName,
-        sellerAvatar: listing?.sellerAvatar,
+        unreadCount: { [user.uid]: 0, [sellerId]: 0 },
         createdAt: serverTimestamp(),
       });
-      console.log('chat created successfully');
+    } else {
+      await setDoc(chatRef, { participantInfo }, { merge: true });
     }
 
     console.log('navigating to chat...');
@@ -125,9 +129,10 @@ const chatId = `${user.uid}_${listing?.sellerId}`;
       pathname: '/modal/chat',
       params: {
         chatId,
-        sellerId: listing?.sellerId ?? '',
-        sellerName: listing?.sellerName ?? '',
-        sellerAvatar: listing?.sellerAvatar ?? '',
+        otherId: sellerId,
+        otherName: listing?.sellerName ?? '',
+        otherAvatar: listing?.sellerAvatar ?? '',
+        listingId: String(id),
         listingTitle: listing?.title ?? '',
         listingImage: listing?.photos?.[0] ?? '',
       }
