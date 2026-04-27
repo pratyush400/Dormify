@@ -606,3 +606,5 @@ pickerConfirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   submitBtnDisabled: { backgroundColor: '#c7d2fe' },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
+
+
