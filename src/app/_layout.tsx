@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import EulaModal from '../components/EulaModal';
 import { useNotifications } from '../hooks/useNotifications';
 import { auth, db } from '../services/firebase';
+import { ThemeProvider } from '../theme';
 
 export default function RootLayout() {
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export default function RootLayout() {
   if (loading) return;
 
   return (
-    <>
+    <ThemeProvider>
       <EulaModal visible={showEula} onAccept={handleAcceptEula} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
@@ -73,6 +74,6 @@ export default function RootLayout() {
         <Stack.Screen name="listing" />
         <Stack.Screen name="event" />
       </Stack>
-    </>
+    </ThemeProvider>
   );
 }

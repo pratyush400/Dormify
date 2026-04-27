@@ -17,10 +17,12 @@ import {
 import { DEFAULT_HALLS, SCHOOL_CONFIGS } from '../../constants/schools';
 import { useUser } from '../../hooks/useUser';
 import { db, storage } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 export default function OnboardScreen() {
   const router = useRouter();
   const { user, loading } = useUser();
+  const { theme } = useAppTheme();
   const [hall, setHall] = useState(user?.hall || '');
   const [avatar, setAvatar] = useState(user?.avatarUrl || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -79,53 +81,57 @@ export default function OnboardScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1f2d4d" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Welcome to Obo</Text>
-          <Text style={styles.title}>Hey, welcome to {schoolName}</Text>
-          <Text style={styles.subtitle}>You’re entering {welcomeLabel} Obo.</Text>
+        <View style={[styles.hero, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.eyebrow, { color: theme.accent }]}>Welcome to Obo</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Hey, welcome to {schoolName}</Text>
+          <Text style={[styles.subtitle, { color: theme.textMuted }]}>You’re entering {welcomeLabel} Obo.</Text>
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: theme.surface }]}>
           <TouchableOpacity style={styles.avatarCard} onPress={pickAvatar} activeOpacity={0.9}>
             <Image
               source={avatar ? { uri: avatar } : require('@/assets/images/davatar.jpg')}
               style={styles.avatar}
             />
             <View style={styles.avatarMeta}>
-              <Text style={styles.sectionTitle}>Profile photo</Text>
-              <Text style={styles.helperText}>Add a face so people know who they’re buying from.</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Profile photo</Text>
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>Add a face so people know who they’re buying from.</Text>
             </View>
-            <View style={styles.avatarAction}>
-              <Ionicons name="camera-outline" size={20} color="#1f2d4d" />
+            <View style={[styles.avatarAction, { backgroundColor: theme.surfaceMuted }]}>
+              <Ionicons name="camera-outline" size={20} color={theme.primary} />
             </View>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Where are you living?</Text>
-          <Text style={styles.helperText}>Pick the hall or area that fits you best.</Text>
+        <View style={[styles.section, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Where are you living?</Text>
+          <Text style={[styles.helperText, { color: theme.textMuted }]}>Pick the hall or area that fits you best.</Text>
           <View style={styles.chipRow}>
             {availableHalls.map((item) => (
               <TouchableOpacity
                 key={item}
-                style={[styles.chip, hall === item && styles.chipActive]}
+                style={[
+                  styles.chip,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.border },
+                  hall === item && [styles.chipActive, { backgroundColor: theme.primary, borderColor: theme.primary }]
+                ]}
                 onPress={() => setHall(item)}
               >
-                <Text style={[styles.chipText, hall === item && styles.chipTextActive]}>{item}</Text>
+                <Text style={[styles.chipText, { color: theme.textMuted }, hall === item && styles.chipTextActive]}>{item}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <TouchableOpacity style={styles.continueBtn} onPress={completeOnboarding} disabled={isLoading}>
+        <TouchableOpacity style={[styles.continueBtn, { backgroundColor: theme.primary }]} onPress={completeOnboarding} disabled={isLoading}>
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (

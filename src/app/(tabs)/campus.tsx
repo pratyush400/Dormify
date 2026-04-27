@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 type Event = {
   id: string;
@@ -38,7 +39,7 @@ const EVENT_FILTERS = [
   { key: 'All Events', icon: 'apps-outline' as const },
 ];
 
-function EventCard({ item, currentUserId }: { item: Event; currentUserId: string }) {
+function EventCard({ item, currentUserId, theme }: { item: Event; currentUserId: string; theme: ReturnType<typeof useAppTheme>['theme'] }) {
   const router = useRouter();
   const isInterested = item.interested?.includes(currentUserId);
 
@@ -86,7 +87,7 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
 
   return (
     <TouchableOpacity
-      style={[styles.card, isPast() && styles.cardPast]}
+      style={[styles.card, { backgroundColor: theme.surface }, isPast() && styles.cardPast]}
       activeOpacity={0.92}
       onPress={() => router.push(`/event/${item.id}`)}
     >
@@ -114,16 +115,16 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
         </View>
       )}
       <View style={styles.cardBody}>
-        <Text style={styles.title}>{item.title}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>
         <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={13} color="#6b7280" />
-          <Text style={styles.metaText}>{formatEventDate(item.eventDate)}</Text>
+          <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
+          <Text style={[styles.metaText, { color: theme.textMuted }]}>{formatEventDate(item.eventDate)}</Text>
         </View>
         <View style={styles.metaRow}>
-          <Ionicons name="location-outline" size={13} color="#6b7280" />
-          <Text style={styles.metaText}>{item.eventLocation}</Text>
+          <Ionicons name="location-outline" size={13} color={theme.textMuted} />
+          <Text style={[styles.metaText, { color: theme.textMuted }]}>{item.eventLocation}</Text>
         </View>
-        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+        <Text style={[styles.description, { color: theme.textMuted }]} numberOfLines={2}>{item.description}</Text>
 
         <View style={styles.cardFooter}>
           <View style={styles.authorRow}>
@@ -133,7 +134,7 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
                 : require('@/assets/images/davatar.jpg')}
               style={styles.avatar}
             />
-            <Text style={styles.authorName}>{item.authorName}</Text>
+            <Text style={[styles.authorName, { color: theme.textMuted }]}>{item.authorName}</Text>
           </View>
 
           <View style={styles.interestedSection}>
@@ -172,6 +173,7 @@ function EventCard({ item, currentUserId }: { item: Event; currentUserId: string
 }
 
 export default function CampusScreen() {
+  const { theme } = useAppTheme();
   const { user } = useUser();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,42 +225,42 @@ export default function CampusScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1f2d4d" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
         data={displayed}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <EventCard item={item} currentUserId={user?.uid ?? ''} />
+          <EventCard item={item} currentUserId={user?.uid ?? ''} theme={theme} />
         )}
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>Obo</Text>
+            <Text style={[styles.brand, { color: theme.accent }]}>Obo</Text>
 
             <View style={styles.searchRow}>
-              <View style={styles.searchBox}>
-                <Ionicons name="search" size={18} color="#9ca3af" />
+              <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Ionicons name="search" size={18} color={theme.textMuted} />
                 <TextInput
                   placeholder="Search Campus"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.searchInput}
+                  placeholderTextColor={theme.textMuted}
+                  style={[styles.searchInput, { color: theme.text }]}
                   value={searchText}
                   onChangeText={setSearchText}
                 />
               </View>
               <TouchableOpacity
-                style={styles.filterBtn}
+                style={[styles.filterBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 onPress={() => setShowUpcoming((current) => !current)}
               >
-                <Ionicons name={showUpcoming ? 'calendar' : 'options-outline'} size={20} color="#1f2d4d" />
+                <Ionicons name={showUpcoming ? 'calendar' : 'options-outline'} size={20} color={theme.primary} />
               </TouchableOpacity>
             </View>
 
@@ -275,15 +277,19 @@ export default function CampusScreen() {
                 return (
                   <TouchableOpacity
                     key={filter.key}
-                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    style={[
+                      styles.categoryChip,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                      active && [styles.categoryChipActive, { borderColor: theme.primary }]
+                    ]}
                     onPress={() => setShowUpcoming(filter.key === 'Upcoming')}
                   >
                     <Ionicons
                       name={filter.icon}
                       size={22}
-                      color={active ? '#1f2d4d' : '#6b7280'}
+                      color={active ? theme.primary : theme.textMuted}
                     />
-                    <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                    <Text style={[styles.categoryLabel, { color: theme.textMuted }, active && [styles.categoryLabelActive, { color: theme.primary }]]}>
                       {filter.key}
                     </Text>
                   </TouchableOpacity>
@@ -293,15 +299,15 @@ export default function CampusScreen() {
           </View>
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1f2d4d" colors={['#1f2d4d']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIllustration}>🎉</Text>
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
               {showUpcoming ? 'No upcoming events yet' : 'No campus events found'}
             </Text>
-            <Text style={styles.emptySubtext}>
+            <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>
               {showUpcoming
                 ? 'Be the first to post a campus event and get people out of their rooms.'
                 : 'Try a different search or switch back to upcoming events.'}

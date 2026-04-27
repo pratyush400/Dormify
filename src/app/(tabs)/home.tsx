@@ -27,6 +27,7 @@ import {
 
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 type Listing = {
   id: string;
@@ -57,31 +58,31 @@ const CATEGORIES = [
   { key: 'Other', icon: 'ellipsis-horizontal' as const },
 ];
 
-function ProductCard({ item }: { item: Listing }) {
+function ProductCard({ item, theme }: { item: Listing; theme: ReturnType<typeof useAppTheme>['theme'] }) {
   const router = useRouter();
   const locationLabel = item.hall || 'Campus';
   const photoUri = item.photos?.[0];
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { backgroundColor: theme.surface }]}
       activeOpacity={0.9}
       onPress={() => router.push(`/listing/${item.id}`)}
     >
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={styles.cardImage} />
       ) : (
-        <View style={[styles.cardImage, styles.cardImageFallback]}>
-          <Ionicons name="image-outline" size={32} color="#9ca3af" />
+        <View style={[styles.cardImage, styles.cardImageFallback, { backgroundColor: theme.surfaceMuted }]}>
+          <Ionicons name="image-outline" size={32} color={theme.textMuted} />
         </View>
       )}
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>{item.title}</Text>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardPrice}>${item.price}</Text>
-          <View style={styles.locationPill}>
-            <Ionicons name="location" size={10} color="#1f2d4d" />
-            <Text style={styles.locationPillText} numberOfLines={1}>{locationLabel}</Text>
+          <Text style={[styles.cardPrice, { color: theme.primary }]}>${item.price}</Text>
+          <View style={[styles.locationPill, { backgroundColor: theme.surfaceMuted }]}>
+            <Ionicons name="location" size={10} color={theme.primary} />
+            <Text style={[styles.locationPillText, { color: theme.primary }]} numberOfLines={1}>{locationLabel}</Text>
           </View>
         </View>
       </View>
@@ -90,6 +91,7 @@ function ProductCard({ item }: { item: Listing }) {
 }
 
 export default function FeedScreen() {
+  const { theme } = useAppTheme();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
@@ -179,39 +181,39 @@ const displayedListings = showSaved
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
-        <ActivityIndicator size="large" color="#1f2d4d" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
         data={filteredListings}
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
-        renderItem={({ item }) => <ProductCard item={item} />}
+        renderItem={({ item }) => <ProductCard item={item} theme={theme} />}
         contentContainerStyle={styles.feed}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>Obo</Text>
+            <Text style={[styles.brand, { color: theme.accent }]}>Obo</Text>
 
             <View style={styles.searchRow}>
-              <View style={styles.searchBox}>
-                <Ionicons name="search" size={18} color="#9ca3af" />
+              <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Ionicons name="search" size={18} color={theme.textMuted} />
                 <TextInput
                   placeholder="Search Marketplace"
-                  placeholderTextColor="#9ca3af"
-                  style={styles.searchInput}
+                  placeholderTextColor={theme.textMuted}
+                  style={[styles.searchInput, { color: theme.text }]}
                   value={searchText}
                   onChangeText={setSearchText}
                 />
               </View>
-              <TouchableOpacity style={styles.filterBtn}>
-                <Ionicons name="options-outline" size={20} color="#1f2d4d" />
+              <TouchableOpacity style={[styles.filterBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Ionicons name="options-outline" size={20} color={theme.primary} />
               </TouchableOpacity>
             </View>
 
@@ -225,15 +227,19 @@ const displayedListings = showSaved
                 return (
                   <TouchableOpacity
                     key={cat.key}
-                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    style={[
+                      styles.categoryChip,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                      active && [styles.categoryChipActive, { borderColor: theme.primary }]
+                    ]}
                     onPress={() => setActiveCategory(cat.key)}
                   >
                     <Ionicons
                       name={cat.icon}
                       size={22}
-                      color={active ? '#1f2d4d' : '#6b7280'}
+                      color={active ? theme.primary : theme.textMuted}
                     />
-                    <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                    <Text style={[styles.categoryLabel, { color: theme.textMuted }, active && [styles.categoryLabelActive, { color: theme.primary }]]}>
                       {cat.key}
                     </Text>
                   </TouchableOpacity>
@@ -246,17 +252,17 @@ const displayedListings = showSaved
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#1f2d4d"
-            colors={['#1f2d4d']}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIllustration}>{showSaved ? '❤️' : '🏠'}</Text>
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
         {showSaved ? 'No saved listings yet' : "Your school's Obo\nseems to be empty..."}
       </Text>
-            <Text style={styles.emptySubtext}>Be the first to post a listing{'\n'}and get things moving!</Text>
+            <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>Be the first to post a listing{'\n'}and get things moving!</Text>
           </View>
         }
       />

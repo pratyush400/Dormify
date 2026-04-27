@@ -12,9 +12,11 @@ import {
   View,
 } from 'react-native';
 import { auth } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
+  const { theme } = useAppTheme();
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const currentUser = auth.currentUser;
@@ -67,26 +69,26 @@ export default function VerifyEmailScreen() {
     <ImageBackground source={backgroundImage} style={styles.container} resizeMode="cover">
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Check your email</Text>
-          <Text style={styles.subtitle}>
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.title, { color: theme.text }]}>Check your email</Text>
+          <Text style={[styles.subtitle, { color: theme.textMuted }]}>
             We sent a verification link to{'\n'}
-            <Text style={styles.emailText}>{email}</Text>
+            <Text style={[styles.emailText, { color: theme.primary }]}>{email}</Text>
           </Text>
-          <Text style={styles.bodyText}>
-            If you can't find the email in your inbox, try checking your spam folder. Tap the link so we know that email is actually yours. Once that’s done, come back and continue.
+          <Text style={[styles.bodyText, { color: theme.textMuted }]}>
+            If you can&apos;t find the email in your inbox, try checking your spam folder. Tap the link so we know that email is actually yours. Once that’s done, come back and continue.
           </Text>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleContinue} disabled={isChecking}>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.primary }]} onPress={handleContinue} disabled={isChecking}>
             {isChecking ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>I verified my email</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleResend} disabled={isResending}>
-            {isResending ? <ActivityIndicator color="#1f2d4d" /> : <Text style={styles.secondaryText}>Resend link</Text>}
+          <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border, backgroundColor: theme.surfaceMuted }]} onPress={handleResend} disabled={isResending}>
+            {isResending ? <ActivityIndicator color={theme.primary} /> : <Text style={[styles.secondaryText, { color: theme.primary }]}>Resend link</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleUseDifferentEmail}>
-            <Text style={styles.linkText}>Use a different email</Text>
+            <Text style={[styles.linkText, { color: theme.accent }]}>Use a different email</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

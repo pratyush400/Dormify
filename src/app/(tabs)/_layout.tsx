@@ -1,9 +1,10 @@
 import { useUser } from '@/hooks/useUser';
+import { Tabs } from "expo-router";
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Tabs } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { db } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 type ChatTabRecord = {
   id: string;
@@ -46,6 +47,7 @@ function ChatsTabIcon({
 
 export default function TabsLayout() {
   const { user } = useUser();
+  const { theme } = useAppTheme();
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
 
   useEffect(() => {
@@ -104,13 +106,13 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#1f2d4d",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.tabInactive,
         tabBarStyle: {
           height: 60,
           paddingBottom: 8,
-          backgroundColor: "#fff",
-          borderTopColor: "#e5e7eb",
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}

@@ -72,6 +72,15 @@ async function getCollegePushTokens(college: string, excludeUid: string) {
     .filter((token): token is string => !!token);
 }
 
+async function getAllPushTokens(excludeUid?: string) {
+  const usersSnapshot = await getDocs(collection(db, 'users'));
+
+  return usersSnapshot.docs
+    .filter((userDoc) => userDoc.id !== excludeUid)
+    .map((userDoc) => userDoc.data()?.expoPushToken as string | undefined)
+    .filter((token): token is string => !!token);
+}
+
 const LISTING_NOTIFICATION_TEMPLATES = [
   (title: string, priceLabel: string, hallLabel: string) => ({
     title: 'Fresh drop on Obo',
@@ -188,5 +197,28 @@ export async function sendNewEventNotification(input: NewEventNotificationInput)
     })));
   } catch (error) {
     console.log('Event notification error:', error);
+  }
+}
+
+export async function sendRebrandNotificationToAllUsers(excludeUid?: string) {
+  try {
+    const tokens = await getAllPushTokens(excludeUid);
+    if (!tokens.length) return 0;
+
+    await sendExpoPushBatch(tokens.map((token) => ({
+      to: token,
+      title: 'Obo is here',
+      body: 'Dormify is now Obo. Same campus marketplace, fresh name. Update when you can.',
+      sound: 'default',
+      badge: 1,
+      data: {
+        type: 'rebrand',
+      },
+    })));
+
+    return tokens.length;
+  } catch (error) {
+    console.log('Rebrand notification error:', error);
+    return 0;
   }
 }

@@ -16,9 +16,11 @@ import {
 } from 'react-native';
 import { getSchoolFromEmail } from '../../constants/schools';
 import { auth, db } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { theme } = useAppTheme();
   const backgroundImage = require("@/assets/images/signup_bg.jpg");
 
   const [fname, setFName] = useState('');
@@ -142,7 +144,7 @@ Use your school email to join Obo
 </View>
 
 
-<View style={styles.card}>
+<View style={[styles.card, { backgroundColor: theme.surface }]}>
 
 <TextInput
   placeholder="Username"
@@ -233,7 +235,7 @@ onChangeText={setConfirmPassword}
 
 <TouchableOpacity
 
-style={styles.submitBtn}
+style={[styles.submitBtn, { backgroundColor: theme.primary }]}
 
 onPress={signUp}
 
@@ -255,7 +257,7 @@ onPress={() => router.push('/(auth)/login')}
 
 >
 
-<Text style={styles.toggleText}>
+<Text style={[styles.toggleText, { color: theme.accent }]}>
 
 Already have account? Login
 

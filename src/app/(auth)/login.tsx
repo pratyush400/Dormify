@@ -21,10 +21,12 @@ import {
 } from 'firebase/auth';
 
 import { auth } from '../../services/firebase';
+import { useAppTheme } from '../../theme';
 
 export default function LoginScreen() {
 
   const router = useRouter();
+  const { theme } = useAppTheme();
 
   const backgroundImage = require("@/assets/images/bg.jpeg");
 
@@ -152,7 +154,7 @@ Login with your school email
 
 
 
-<View style={styles.card}>
+<View style={[styles.card, { backgroundColor: theme.surface }]}>
 
 
 <TextInput
@@ -197,7 +199,7 @@ onChangeText={setPassword}
 
 <TouchableOpacity
 
-style={styles.submitBtn}
+style={[styles.submitBtn, { backgroundColor: theme.primary }]}
 
 onPress={signIn}
 
@@ -225,7 +227,7 @@ Login
 
 <TouchableOpacity onPress={goToSignup}>
 
-<Text style={styles.toggleText}>
+<Text style={[styles.toggleText, { color: theme.accent }]}>
 
 Create account
 
@@ -237,7 +239,7 @@ Create account
 
 <TouchableOpacity onPress={resetPassword}>
 
-<Text style={styles.resetText}>
+<Text style={[styles.resetText, { color: theme.textMuted }]}>
 
 Forgot password
 

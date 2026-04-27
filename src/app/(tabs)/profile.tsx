@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { auth, db } from '../../services/firebase';
+import { sendRebrandNotificationToAllUsers } from '../../services/notifications';
+import { useAppTheme } from '../../theme';
 type Listing = {
   id: string;
   title: string;
@@ -75,8 +77,10 @@ function MyListingCard({ item }: { item: Listing }) {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, loading } = useUser();
+  const { theme, themeMode, toggleTheme } = useAppTheme();
   const [listings, setListings] = useState<Listing[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
+  const [isSendingRebrandPush, setIsSendingRebrandPush] = useState(false);
 
   const [refreshTick, setRefreshTick] = useState(0);
 const [refreshing, setRefreshing] = useState(false);
@@ -104,6 +108,7 @@ const onRefresh = () => {
   const soldListings = listings.filter(l => l.sold);
   const displayed = activeTab === 'active' ? activeListings : soldListings;
 const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
+  const canBroadcastRebrand = __DEV__ || user?.email === 'pratyushjha@lclark.edu';
   const handleSignOut = async () => {
     await signOut(auth);
     router.replace('/(auth)/login');
@@ -121,6 +126,18 @@ const DEFAULT_AVATAR = require('@/assets/images/davatar.jpg');
       },
     ]
   );
+};
+
+const handleBroadcastRebrand = async () => {
+  setIsSendingRebrandPush(true);
+  try {
+    const sentCount = await sendRebrandNotificationToAllUsers(user?.uid);
+    Alert.alert('Obo push sent', `Sent the rebrand notification to ${sentCount} devices.`);
+  } catch {
+    Alert.alert('Error', 'Could not send the rebrand push.');
+  } finally {
+    setIsSendingRebrandPush(false);
+  }
 };
 
 const promptReauthAndDelete = () => {
@@ -174,26 +191,26 @@ const promptReauthAndDelete = () => {
   
 
 return (
-  <SafeAreaView style={styles.container}>
+  <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
     <ScrollView
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#6366f1"
-          colors={['#6366f1']}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
         />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
         <TouchableOpacity onPress={() => router.push('/modal/edit-profile')}>
-          <Ionicons name="create-outline" size={24} color="#6366f1" />
+          <Ionicons name="create-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: theme.surface }]}>
         <View style={styles.avatarContainer}>
           <Image
             source={{ uri: user?.avatarUrl || DEFAULT_AVATAR }}
@@ -203,48 +220,73 @@ return (
             <Ionicons name="camera" size={14} color="#fff" />
           </TouchableOpacity>
         </View>
-        <Text style={styles.fullName}>{user?.fname} {user?.lname}</Text>
-        <Text style={styles.username}>@{user?.username}</Text>
+        <Text style={[styles.fullName, { color: theme.text }]}>{user?.fname} {user?.lname}</Text>
+        <Text style={[styles.username, { color: theme.accent }]}>@{user?.username}</Text>
         <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={14} color="#9ca3af" />
-          <Text style={styles.infoText}>{user?.hall || 'No hall set'} · {user?.college}</Text>
+          <Ionicons name="location-outline" size={14} color={theme.textMuted} />
+          <Text style={[styles.infoText, { color: theme.textMuted }]}>{user?.hall || 'No hall set'} · {user?.college}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Ionicons name="mail-outline" size={14} color="#9ca3af" />
-          <Text style={styles.infoText}>{user?.email}</Text>
+          <Ionicons name="mail-outline" size={14} color={theme.textMuted} />
+          <Text style={[styles.infoText, { color: theme.textMuted }]}>{user?.email}</Text>
         </View>
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { backgroundColor: theme.surfaceMuted }]}>
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>{activeListings.length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{activeListings.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Active</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>{soldListings.length}</Text>
-            <Text style={styles.statLabel}>Sold</Text>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{soldListings.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Sold</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>{listings.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+            <Text style={[styles.statNumber, { color: theme.text }]}>{listings.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>Total</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.tabsContainer}>
+      <View style={[styles.settingsCard, { backgroundColor: theme.surface }]}>
+        <View>
+          <Text style={[styles.settingsTitle, { color: theme.text }]}>Appearance</Text>
+          <Text style={[styles.settingsSubtext, { color: theme.textMuted }]}>
+            Dark mode is currently {themeMode === 'system' ? `following system (${theme.mode})` : themeMode}.
+          </Text>
+        </View>
+        <TouchableOpacity style={[styles.themeToggleBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]} onPress={toggleTheme}>
+          <Ionicons name={themeMode === 'dark' ? 'moon' : 'sunny'} size={18} color={theme.primary} />
+          <Text style={[styles.themeToggleText, { color: theme.text }]}>
+            Switch to {themeMode === 'dark' ? 'light' : 'dark'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {canBroadcastRebrand ? (
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'active' && styles.tabActive]}
+          style={[styles.broadcastBtn, { backgroundColor: theme.primary }]}
+          onPress={handleBroadcastRebrand}
+          disabled={isSendingRebrandPush}
+        >
+          {isSendingRebrandPush ? <ActivityIndicator color="#fff" /> : <Text style={styles.broadcastText}>Send Obo update push</Text>}
+        </TouchableOpacity>
+      ) : null}
+
+      <View style={[styles.tabsContainer, { backgroundColor: theme.surface }]}>
+        <TouchableOpacity
+          style={[styles.tab, { backgroundColor: theme.surface }, activeTab === 'active' && [styles.tabActive, { backgroundColor: theme.primary }]]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.textMuted }, activeTab === 'active' && styles.tabTextActive]}>
             Active ({activeListings.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'sold' && styles.tabActive]}
+          style={[styles.tab, { backgroundColor: theme.surface }, activeTab === 'sold' && [styles.tabActive, { backgroundColor: theme.primary }]]}
           onPress={() => setActiveTab('sold')}
         >
-          <Text style={[styles.tabText, activeTab === 'sold' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.textMuted }, activeTab === 'sold' && styles.tabTextActive]}>
             Sold ({soldListings.length})
           </Text>
         </TouchableOpacity>
@@ -257,11 +299,11 @@ return (
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>{activeTab === 'active' ? '🛋️' : '🏷️'}</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: theme.text }]}>
             {activeTab === 'active' ? 'No active listings' : 'Nothing sold yet'}
           </Text>
           {activeTab === 'active' && (
-            <TouchableOpacity style={styles.sellNowBtn} onPress={() => router.push('/(tabs)/sell')}>
+            <TouchableOpacity style={[styles.sellNowBtn, { backgroundColor: theme.primary }]} onPress={() => router.push('/(tabs)/sell')}>
               <Text style={styles.sellNowText}>Post a Listing</Text>
             </TouchableOpacity>
           )}
@@ -300,6 +342,34 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
+  settingsCard: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    borderRadius: 20,
+    padding: 18,
+    gap: 12,
+  },
+  settingsTitle: { fontSize: 16, fontWeight: '700' },
+  settingsSubtext: { fontSize: 13, lineHeight: 18 },
+  themeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  themeToggleText: { fontSize: 14, fontWeight: '600' },
+  broadcastBtn: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  broadcastText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   avatarContainer: { position: 'relative', marginBottom: 8 },
   avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: '#6366f1' },
   avatarEditBtn: {
