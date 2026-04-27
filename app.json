@@ -1,15 +1,15 @@
 {
   "expo": {
     "name": "Obo",
-    "slug": "Dormify",
-    "version": "1.0.2",
+    "slug": "obo",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/Obo.png",
     "scheme": "dormify",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/Obo.png",
-      "buildNumber": "29",
+      "buildNumber": "30",
       "bundleIdentifier": "com.pratyushjha.dormify",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -56,9 +56,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a4e8edce-5c2a-4f7b-9a36-a27aae2b82b8"
+        "projectId": "330116de-640c-4ace-b653-5efa58bae45f"
       }
     },
-    "owner": "Obo Team"
+    "owner": "obo-lclark"
   }
 }
