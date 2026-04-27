@@ -1,7 +1,7 @@
 // src/app/_layout.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, reload } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import EulaModal from '../components/EulaModal';
@@ -18,6 +18,12 @@ export default function RootLayout() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        await reload(firebaseUser);
+        if (!auth.currentUser?.emailVerified) {
+          setLoading(false);
+          router.replace('/(auth)/verify-email');
+          return;
+        }
         const accepted = await AsyncStorage.getItem('eulaAccepted');
         if (!accepted) {
           setShowEula(true);
@@ -42,6 +48,11 @@ export default function RootLayout() {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       router.replace('/(auth)/signup');
+      return;
+    }
+    await reload(currentUser);
+    if (!auth.currentUser?.emailVerified) {
+      router.replace('/(auth)/verify-email');
       return;
     }
     const userSnapshot = await getDoc(doc(db, 'users', currentUser.uid));

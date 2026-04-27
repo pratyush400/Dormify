@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import React, { useState } from 'react';
 import {
@@ -85,7 +85,8 @@ const signUp = async () => {
       onboardingComplete: false,
     });
 
-    router.replace('/(auth)/onboard');
+    await sendEmailVerification(userCredential.user);
+    router.replace('/(auth)/verify-email');
 
   } catch (error: any) {
     setErrorMessage(error.message);

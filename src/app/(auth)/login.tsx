@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import {
+  reload,
   sendPasswordResetEmail,
   signInWithEmailAndPassword
 } from 'firebase/auth';
@@ -44,7 +45,13 @@ export default function LoginScreen() {
 
     try {
 
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await reload(userCredential.user);
+
+      if (!auth.currentUser?.emailVerified) {
+        router.replace('/(auth)/verify-email');
+        return;
+      }
 
       router.replace('/(tabs)/home');
 
@@ -137,7 +144,7 @@ keyboardShouldPersistTaps="handled"
 
 <Text style={styles.subtitle}>
 
-Login with your LC or college email
+Login with your school email
 
 </Text>
 
