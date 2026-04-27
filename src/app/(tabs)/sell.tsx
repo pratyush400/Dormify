@@ -12,6 +12,7 @@ import {
 import { useUser } from '../../hooks/useUser';
 import { auth, db, storage } from '../../services/firebase';
 import { sendNewEventNotification, sendNewListingNotification } from '../../services/notifications';
+import { grantOneTimeEntry } from '../../services/raffle';
 
 const CATEGORIES = ['Furniture', 'Books', 'Electronics', 'Clothing', 'Kitchen', 'Bedding', 'Sports', 'Other'];
 const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
@@ -235,7 +236,11 @@ const [eventTimeStr, setEventTimeStr] = useState(''); // "HH:MM AM/PM"
           hall: hall || 'Campus',
           listingId: listingRef.id,
         });
-        Alert.alert('Posted!', 'Your listing is now live.');
+        const granted = await grantOneTimeEntry(authUser.uid, 'postedListing');
+        Alert.alert(
+          'Posted!',
+          granted ? 'Your listing is live — +1 raffle entry 🎟️' : 'Your listing is now live.'
+        );
       } else {
         let eventImageUrl = '';
         if (eventImage) {

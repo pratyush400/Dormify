@@ -30,6 +30,8 @@ type NewEventNotificationInput = {
   eventId: string;
 };
 
+type PreviewNotificationType = 'listing' | 'event' | 'rebrand';
+
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 
 function chunk<T>(items: T[], size: number) {
@@ -220,5 +222,56 @@ export async function sendRebrandNotificationToAllUsers(excludeUid?: string) {
   } catch (error) {
     console.log('Rebrand notification error:', error);
     return 0;
+  }
+}
+
+export async function sendPreviewNotificationToUser(params: {
+  receiverId: string;
+  type: PreviewNotificationType;
+}) {
+  try {
+    const token = await getUserPushToken(params.receiverId);
+    if (!token) return false;
+
+    const payloadByType: Record<PreviewNotificationType, PushPayload> = {
+      listing: {
+        to: token,
+        title: 'Fresh drop on Obo',
+        body: 'Vintage mini fridge just landed near Campus. Claim it now!',
+        sound: 'default',
+        badge: 1,
+        data: {
+          type: 'listing',
+          listingId: 'preview-listing',
+        },
+      },
+      event: {
+        to: token,
+        title: 'New event just dropped',
+        body: 'Sunset study jam tonight at the student center. Catch the details in Obo.',
+        sound: 'default',
+        badge: 1,
+        data: {
+          type: 'event',
+          eventId: 'preview-event',
+        },
+      },
+      rebrand: {
+        to: token,
+        title: 'Obo is here',
+        body: 'Dormify is now Obo. Same campus marketplace, fresh name. Update when you can.',
+        sound: 'default',
+        badge: 1,
+        data: {
+          type: 'rebrand',
+        },
+      },
+    };
+
+    await sendExpoPushBatch([payloadByType[params.type]]);
+    return true;
+  } catch (error) {
+    console.log('Preview notification error:', error);
+    return false;
   }
 }

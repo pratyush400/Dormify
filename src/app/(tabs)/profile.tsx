@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { auth, db } from '../../services/firebase';
-import { sendRebrandNotificationToAllUsers } from '../../services/notifications';
+import { sendPreviewNotificationToUser, sendRebrandNotificationToAllUsers } from '../../services/notifications';
 import { useAppTheme } from '../../theme';
 type Listing = {
   id: string;
@@ -81,6 +81,7 @@ export default function ProfileScreen() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'sold'>('active');
   const [isSendingRebrandPush, setIsSendingRebrandPush] = useState(false);
+  const [sendingPreviewType, setSendingPreviewType] = useState<'listing' | 'event' | null>(null);
 
   const [refreshTick, setRefreshTick] = useState(0);
 const [refreshing, setRefreshing] = useState(false);
@@ -137,6 +138,23 @@ const handleBroadcastRebrand = async () => {
     Alert.alert('Error', 'Could not send the rebrand push.');
   } finally {
     setIsSendingRebrandPush(false);
+  }
+};
+
+const handleSendPreviewPush = async (type: 'listing' | 'event') => {
+  if (!user?.uid) return;
+  setSendingPreviewType(type);
+  try {
+    const sent = await sendPreviewNotificationToUser({ receiverId: user.uid, type });
+    if (!sent) {
+      Alert.alert('Push unavailable', 'This account does not have a push token yet.');
+      return;
+    }
+    Alert.alert('Preview sent', `Sent a ${type} notification preview to this device.`);
+  } catch {
+    Alert.alert('Error', `Could not send the ${type} notification preview.`);
+  } finally {
+    setSendingPreviewType(null);
   }
 };
 
@@ -264,13 +282,54 @@ return (
       </View>
 
       {canBroadcastRebrand ? (
-        <TouchableOpacity
-          style={[styles.broadcastBtn, { backgroundColor: theme.primary }]}
-          onPress={handleBroadcastRebrand}
-          disabled={isSendingRebrandPush}
-        >
-          {isSendingRebrandPush ? <ActivityIndicator color="#fff" /> : <Text style={styles.broadcastText}>Send Obo update push</Text>}
-        </TouchableOpacity>
+        <View style={[styles.adminCard, { backgroundColor: theme.surface }]}>
+          <View>
+            <Text style={[styles.settingsTitle, { color: theme.text }]}>Push Tools</Text>
+            <Text style={[styles.settingsSubtext, { color: theme.textMuted }]}>
+              Send safe previews to this device or broadcast the Obo update to everyone.
+            </Text>
+          </View>
+
+          <View style={styles.previewRow}>
+            <TouchableOpacity
+              style={[styles.previewBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+              onPress={() => handleSendPreviewPush('listing')}
+              disabled={sendingPreviewType !== null}
+            >
+              {sendingPreviewType === 'listing' ? (
+                <ActivityIndicator color={theme.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="pricetag-outline" size={16} color={theme.primary} />
+                  <Text style={[styles.previewBtnText, { color: theme.text }]}>Listing preview</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.previewBtn, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}
+              onPress={() => handleSendPreviewPush('event')}
+              disabled={sendingPreviewType !== null}
+            >
+              {sendingPreviewType === 'event' ? (
+                <ActivityIndicator color={theme.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+                  <Text style={[styles.previewBtnText, { color: theme.text }]}>Event preview</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.broadcastBtn, { backgroundColor: theme.primary }]}
+            onPress={handleBroadcastRebrand}
+            disabled={isSendingRebrandPush}
+          >
+            {isSendingRebrandPush ? <ActivityIndicator color="#fff" /> : <Text style={styles.broadcastText}>Send Obo update push</Text>}
+          </TouchableOpacity>
+        </View>
       ) : null}
 
       <View style={[styles.tabsContainer, { backgroundColor: theme.surface }]}>
@@ -349,8 +408,31 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
+  adminCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 20,
+    padding: 18,
+    gap: 14,
+  },
   settingsTitle: { fontSize: 16, fontWeight: '700' },
   settingsSubtext: { fontSize: 13, lineHeight: 18 },
+  previewRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  previewBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  previewBtnText: { fontSize: 14, fontWeight: '600' },
   themeToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,8 +445,6 @@ const styles = StyleSheet.create({
   },
   themeToggleText: { fontSize: 14, fontWeight: '600' },
   broadcastBtn: {
-    marginHorizontal: 16,
-    marginTop: 12,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',

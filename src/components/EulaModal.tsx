@@ -1,11 +1,11 @@
 // src/components/EulaModal.tsx
 import React from 'react';
 import {
-    Modal,
-    SafeAreaView,
-    ScrollView, StyleSheet,
-    Text, TouchableOpacity,
-    View
+  Modal,
+  SafeAreaView,
+  ScrollView, StyleSheet,
+  Text, TouchableOpacity,
+  View
 } from 'react-native';
 import { useAppTheme } from '../theme';
 

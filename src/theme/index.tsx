@@ -40,7 +40,7 @@ const palette = {
 };
 
 type ThemeContextValue = {
-  theme: typeof palette.light;
+  theme: typeof palette.light | typeof palette.dark;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   toggleTheme: () => Promise<void>;
