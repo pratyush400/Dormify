@@ -6,6 +6,7 @@ export default function ModalLayout() {
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="filter" />
       <Stack.Screen name="view-profile" />
+      <Stack.Screen name="raffle" />
     </Stack>
   );
 }

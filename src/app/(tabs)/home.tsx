@@ -27,6 +27,7 @@ import {
 
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
+import { backfillEntriesIfNeeded } from '../../services/raffle';
 
 type Listing = {
   id: string;
@@ -90,6 +91,7 @@ function ProductCard({ item }: { item: Listing }) {
 }
 
 export default function FeedScreen() {
+  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
@@ -128,6 +130,11 @@ const displayedListings = showSaved
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
   };
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    backfillEntriesIfNeeded(user.uid).catch(() => {});
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return;
@@ -199,6 +206,21 @@ const displayedListings = showSaved
           <View>
             <Text style={styles.brand}>Obo</Text>
 
+            <TouchableOpacity
+              style={styles.raffleBanner}
+              activeOpacity={0.9}
+              onPress={() => router.push('/modal/raffle')}
+            >
+              <View style={styles.raffleBannerIcon}>
+                <Ionicons name="ticket-outline" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.raffleBannerTitle}>Win a MacBook</Text>
+                <Text style={styles.raffleBannerSub}>Sign up + post + invite friends to enter</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </TouchableOpacity>
+
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
                 <Ionicons name="search" size={18} color="#9ca3af" />
@@ -267,6 +289,18 @@ const displayedListings = showSaved
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
   feed: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  raffleBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#1f2d4d', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+  },
+  raffleBannerIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  raffleBannerTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  raffleBannerSub: { color: '#cbd5e1', fontSize: 12, marginTop: 1 },
   brand: {
     fontSize: 38,
     fontWeight: '700',
