@@ -4,7 +4,6 @@ import {
   addDoc,
   collection,
   doc,
-  getDoc,
   increment,
   onSnapshot, orderBy,
   query, serverTimestamp,
@@ -23,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { sendChatNotification } from '../../services/notifications';
 import { useUser } from '../../hooks/useUser';
 import { db } from '../../services/firebase';
 
@@ -71,27 +71,6 @@ export default function ChatScreen() {
   const [pendingListing, setPendingListing] = useState<ListingContext | null>(
     listingId ? { id: listingId, title: listingTitle ?? '', image: listingImage ?? '' } : null
   );
-
-  const sendPushNotification = async (receiverId: string, senderName: string, message: string) => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', receiverId));
-      const token = userDoc.data()?.expoPushToken;
-      if (!token) return;
-      await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: token,
-          title: senderName,
-          body: message,
-          sound: 'default',
-          badge: 1,
-        }),
-      });
-    } catch (e) {
-      console.log('Push notification error:', e);
-    }
-  };
 
   useEffect(() => {
     if (!chatId) return;
@@ -171,11 +150,12 @@ export default function ChatScreen() {
     await updateDoc(doc(db, 'chats', chatId), chatUpdate);
 
     if (otherUserId) {
-      await sendPushNotification(
-        otherUserId,
-        `${user.fname} ${user.lname}`,
-        text
-      );
+      await sendChatNotification({
+        receiverId: otherUserId,
+        senderName: `${user.fname} ${user.lname}`.trim() || 'New message',
+        message: text,
+        chatId,
+      });
     }
 
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);

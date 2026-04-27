@@ -1,46 +1,53 @@
 // src/app/_layout.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { Stack, useRouter } from 'expo-router';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import EulaModal from '../components/EulaModal';
-import { auth } from '../services/firebase';
+import { useNotifications } from '../hooks/useNotifications';
+import { auth, db } from '../services/firebase';
 
 export default function RootLayout() {
-   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthInitialized, setIsAuthInitialized] = useState(false); // NEW: The "wait" flag
   const [showEula, setShowEula] = useState(false);
-  
+
   const router = useRouter();
-  const segments = useSegments();
+  useNotifications();
 
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    setUser(firebaseUser);
-
-    if (firebaseUser) {
-      const accepted = await AsyncStorage.getItem('eulaAccepted');
-      if (!accepted) {
-        setShowEula(true);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const accepted = await AsyncStorage.getItem('eulaAccepted');
+        if (!accepted) {
+          setShowEula(true);
+          setLoading(false);
+          return;
+        }
+        const userSnapshot = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const onboardingComplete = userSnapshot.data()?.onboardingComplete;
         setLoading(false);
-        return;
+        router.replace(onboardingComplete ? '/(tabs)/home' : '/(auth)/onboard');
+      } else {
+        setLoading(false);
+        router.replace('/(auth)/signup');
       }
-      setLoading(false);
-      router.replace('/(tabs)/home');
-    } else {
-      setLoading(false);
-      router.replace('/(auth)/login');
-    }
-  });
-  return unsubscribe;
-}, []);
+    });
+    return unsubscribe;
+  }, [router]);
 
-const handleAcceptEula = async () => {
-  await AsyncStorage.setItem('eulaAccepted', 'true');
-  setShowEula(false);
-  router.replace('/(tabs)/home');
-};
+  const handleAcceptEula = async () => {
+    await AsyncStorage.setItem('eulaAccepted', 'true');
+    setShowEula(false);
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      router.replace('/(auth)/signup');
+      return;
+    }
+    const userSnapshot = await getDoc(doc(db, 'users', currentUser.uid));
+    const onboardingComplete = userSnapshot.data()?.onboardingComplete;
+    router.replace(onboardingComplete ? '/(tabs)/home' : '/(auth)/onboard');
+  };
 
   if (loading) return;
 

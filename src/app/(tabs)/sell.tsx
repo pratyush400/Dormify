@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useUser } from '../../hooks/useUser';
 import { auth, db, storage } from '../../services/firebase';
+import { sendNewEventNotification, sendNewListingNotification } from '../../services/notifications';
 
 const CATEGORIES = ['Furniture', 'Books', 'Electronics', 'Clothing', 'Kitchen', 'Bedding', 'Sports', 'Other'];
 const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
@@ -211,7 +212,7 @@ const [eventTimeStr, setEventTimeStr] = useState(''); // "HH:MM AM/PM"
             return getDownloadURL(storageRef);
           })
         );
-        await addDoc(collection(db, 'listings'), {
+        const listingRef = await addDoc(collection(db, 'listings'), {
           title, description,
           price: parseFloat(price),
           category: category || 'Other',
@@ -225,6 +226,15 @@ const [eventTimeStr, setEventTimeStr] = useState(''); // "HH:MM AM/PM"
           sellerAvatar: user?.avatarUrl || '',
           college: user?.college || '',
         });
+        await sendNewListingNotification({
+          actorId: authUser.uid,
+          actorName: `${user?.fname ?? ''} ${user?.lname ?? ''}`.trim() || 'Someone',
+          college: user?.college || '',
+          title,
+          price: parseFloat(price),
+          hall: hall || 'Campus',
+          listingId: listingRef.id,
+        });
         Alert.alert('Posted!', 'Your listing is now live.');
       } else {
         let eventImageUrl = '';
@@ -237,7 +247,7 @@ const [eventTimeStr, setEventTimeStr] = useState(''); // "HH:MM AM/PM"
 
         const combinedDate = parseEventDate(eventDateStr, eventTimeStr);
 if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your date and time.');
-        await addDoc(collection(db, 'events'), {
+        const eventRef = await addDoc(collection(db, 'events'), {
           title, description,
           eventDate: combinedDate,
           eventLocation: eventLocation.trim() || 'Campus',
@@ -248,6 +258,15 @@ if (!combinedDate) return Alert.alert('Invalid date or time', 'Please check your
           college: user?.college || '',
           interested: [],
           createdAt: serverTimestamp(),
+        });
+        await sendNewEventNotification({
+          actorId: authUser.uid,
+          actorName: `${user?.fname ?? ''} ${user?.lname ?? ''}`.trim() || 'Someone',
+          college: user?.college || '',
+          title,
+          location: eventLocation.trim() || 'Campus',
+          when: combinedDate,
+          eventId: eventRef.id,
         });
         Alert.alert('Posted!', 'Your event is now live on Campus.');
       }

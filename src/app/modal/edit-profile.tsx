@@ -14,10 +14,9 @@ import {
   TextInput, TouchableOpacity,
   View,
 } from 'react-native';
+import { DEFAULT_HALLS, SCHOOL_CONFIGS } from '../../constants/schools';
 import { useUser } from '../../hooks/useUser';
 import { db, storage } from '../../services/firebase';
-
-const HALLS = ['All Halls', 'Copeland Hall', 'Akin Hall', 'Forest Hall', 'Odell Hall', 'Stewart Hall', 'Holmes Hall', 'Hartzfeld Hall', 'Apartments', 'Off-campus'];
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -28,6 +27,7 @@ export default function EditProfileScreen() {
   const [hall, setHall] = useState(user?.hall || '');
   const [avatar, setAvatar] = useState(user?.avatarUrl || '');
   const [isLoading, setIsLoading] = useState(false);
+  const halls = SCHOOL_CONFIGS.find((school) => school.key === user?.schoolKey || school.name === user?.college)?.halls || DEFAULT_HALLS;
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
@@ -62,7 +62,7 @@ await setDoc(doc(db, 'users', user.uid), {
 
     Alert.alert('Saved!', 'Your profile has been updated.');
     router.back();
-  } catch (e) {
+  } catch {
     Alert.alert('Error', 'Could not save profile.');
   } finally {
     setIsLoading(false);
@@ -107,7 +107,7 @@ await setDoc(doc(db, 'users', user.uid), {
 
         <Text style={styles.label}>Hall / Location</Text>
         <View style={styles.chipRow}>
-          {HALLS.map(h => (
+          {halls.map(h => (
             <TouchableOpacity
               key={h}
               style={[styles.chip, hall === h && styles.chipActive]}

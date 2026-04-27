@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   ImageBackground,
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getSchoolFromEmail } from '../../constants/schools';
 import { auth, db } from '../../services/firebase';
 
 export default function SignupScreen() {
@@ -29,8 +30,9 @@ export default function SignupScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const isValidEduEmail = email.toLowerCase().endsWith('.edu');
-    const [usernameError, setUsernameError] = useState('');
-const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const detectedSchool = getSchoolFromEmail(email);
 
 const checkUsername = async (value: string) => {
   if (!value) return;
@@ -51,11 +53,6 @@ const checkEmail = async (value: string) => {
     setEmailError('');
   }
 };
-
-
-const isSigningUp = useRef(false);
-
-// remove addDoc from imports since we don't need it anymore
 
 const signUp = async () => {
   if (!fname) return setErrorMessage("Enter your First name");
@@ -81,9 +78,11 @@ const signUp = async () => {
       lname,
       email,
       hall: '',
-      college: '',
+      college: detectedSchool?.name || '',
+      schoolKey: detectedSchool?.key || '',
       avatarUrl: '',
       createdAt: serverTimestamp(),
+      onboardingComplete: false,
     });
 
     router.replace('/(auth)/onboard');
@@ -135,7 +134,7 @@ Create Account
 
 <Text style={styles.subtitle}>
 
-Use your LC or college email
+Use your school email to join Dormify
 
 </Text>
 
@@ -163,6 +162,7 @@ Use your LC or college email
   onBlur={() => checkEmail(email)}
 />
 {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+{detectedSchool ? <Text style={styles.schoolHint}>This looks like {detectedSchool.name}</Text> : null}
 
 <TextInput
 
@@ -250,7 +250,7 @@ Create Account
 
 <TouchableOpacity
 
-onPress={() => router.back()}
+onPress={() => router.push('/(auth)/login')}
 
 >
 
@@ -392,6 +392,12 @@ errorText: {
 
 color: 'red',
 
+},
+schoolHint: {
+  color: '#4b5563',
+  fontSize: 13,
+  fontWeight: '600',
+  marginTop: -6,
 },
 
 });

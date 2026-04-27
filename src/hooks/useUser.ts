@@ -13,10 +13,12 @@ export type UserProfile = {
   email: string;
   hall: string;
   college: string;
+  schoolKey?: string;
   avatarUrl: string;
   createdAt: any;
   lastSeen: any;
   isOnline: boolean;
+  onboardingComplete?: boolean;
 };
 
 export function useUser() {
@@ -53,7 +55,7 @@ export function useUser() {
           isOnline: online,
           lastSeen: serverTimestamp(),
         }, { merge: true });
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     };
 
     updateStatus(true);
