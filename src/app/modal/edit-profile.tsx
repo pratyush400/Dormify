@@ -49,7 +49,7 @@ const handleSave = async () => {
     }
 
 await setDoc(doc(db, 'users', user.uid), {
-  fname, lname, username, hall, avatarUrl,
+  fname, lname, hall, avatarUrl,
 }, { merge: true });
 
     const sellerListings = await getDocs(query(
@@ -103,7 +103,15 @@ await setDoc(doc(db, 'users', user.uid), {
         <TextInput style={styles.input} value={lname} onChangeText={setLname} />
 
         <Text style={styles.label}>Username</Text>
-        <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" />
+        <TextInput
+          style={[styles.input, { color: '#9ca3af' }]}
+          value={username}
+          editable={false}
+          autoCapitalize="none"
+        />
+        <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: -8 }}>
+          Username is locked — it's your referral code.
+        </Text>
 
         <Text style={styles.label}>Hall / Location</Text>
         <View style={styles.chipRow}>
