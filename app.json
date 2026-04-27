@@ -4,11 +4,11 @@
     "slug": "Dormify",
     "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Obo.png",
     "scheme": "dormify",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/Obo.png",
       "buildNumber": "28",
       "bundleIdentifier": "com.pratyushjha.dormify",
       "googleServicesFile": "./GoogleService-Info.plist",
