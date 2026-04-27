@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/Obo.png",
-      "buildNumber": "28",
+      "buildNumber": "29",
       "bundleIdentifier": "com.pratyushjha.dormify",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
