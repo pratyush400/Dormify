@@ -8,17 +8,17 @@ from appium.options.common import AppiumOptions
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-
-# ── CONFIG ───────────────────────────────────────────────────────────────
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = os.getenv("LLAMA_API_KEY")
 OPENROUTER_MODEL   = "meta-llama/llama-3.2-11b-vision-instruct"  # free
 APPIUM_SERVER      = "http://127.0.0.1:4723"
 
-BUNDLE_ID          = "com.yourcompany.obo"   # update this
-DEVICE_NAME        = "iPhone 15"             # your simulator name
-PLATFORM_VERSION   = "17.0"                  # your iOS version
-# ─────────────────────────────────────────────────────────────────────────
+BUNDLE_ID          = "com.pratyushjha.dormify"    
+DEVICE_NAME        = "iPhone 15"             
+PLATFORM_VERSION   = "17.0"                 
 
 
 def get_driver():
@@ -31,7 +31,6 @@ def get_driver():
     options.set_capability("noReset",         True)
     options.set_capability("newCommandTimeout", 180)
 
-    # Use simulator (set to False for real device)
     options.set_capability("isSimulator", True)
 
     return webdriver.Remote(APPIUM_SERVER, options=options)
